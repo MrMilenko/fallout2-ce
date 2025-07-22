@@ -2,7 +2,9 @@
 
 #include <stdio.h>
 #include <string.h>
-
+#ifdef NXDK
+#include "xboxkrnl/xboxkrnl.h"
+#endif
 #include "platform_compat.h"
 
 namespace fallout {
@@ -67,7 +69,13 @@ bool sfallConfigInit(int argc, char** argv)
 
     configSetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PIPBOY_AVAILABLE_AT_GAMESTART, 0);
 
+    configSetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_PIPBOY_AVAILABLE_AT_GAMESTART, 0);
+
     char path[COMPAT_MAX_PATH];
+
+#ifdef NXDK
+    snprintf(path, sizeof(path), "E:\\UDATA\\Fallout2\\ddraw.ini");
+#else
     char* executable = argv[0];
     char* ch = strrchr(executable, '\\');
     if (ch != nullptr) {
@@ -77,12 +85,18 @@ bool sfallConfigInit(int argc, char** argv)
     } else {
         strcpy(path, SFALL_CONFIG_FILE_NAME);
     }
+#endif
+
+    DbgPrint("[sfallConfigInit] Using config path: %s\n", path);
 
     configRead(&gSfallConfig, path, false);
 
+#ifndef NXDK
     configParseCommandLineArguments(&gSfallConfig, argc, argv);
+#endif
 
     gSfallConfigInitialized = true;
+
 
     return true;
 }

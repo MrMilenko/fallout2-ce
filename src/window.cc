@@ -1,5 +1,7 @@
 #include "window.h"
-
+#ifdef NXDK
+#include "xboxkrnl/xboxkrnl.h"
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1386,9 +1388,13 @@ void _initWindow(int resolution, int a2)
             exit(1);
             break;
         case WINDOW_MANAGER_ERR_INITIALIZING_TEXT_FONTS:
+            #ifdef NXDK
+                DbgPrint("[windowManagerInit] WARNING: Font load failed, continuing anyway\n");
+            #else
             snprintf(err, sizeof(err), "Couldn't find/load text fonts\n");
             showMesageBox(err);
             exit(1);
+            #endif
             break;
         case WINDOW_MANAGER_ERR_WINDOW_SYSTEM_ALREADY_INITIALIZED:
             snprintf(err, sizeof(err), "Attempt to initialize window system twice\n");
@@ -1424,9 +1430,13 @@ void _initWindow(int resolution, int a2)
             exit(1);
             break;
         case WINDOW_MANAGER_ERR_INITIALIZING_INPUT:
+            #ifdef NXDK
+                DbgPrint("[windowManagerInit] WARNING: Busted ass input. SHOCKER. Pass this.\n");
+            #else
             snprintf(err, sizeof(err), "Failure initializing input devices.\n");
             showMesageBox(err);
             exit(1);
+            #endif
             break;
         default:
             snprintf(err, sizeof(err), "Unknown error code %d\n", rc);
@@ -1437,12 +1447,16 @@ void _initWindow(int resolution, int a2)
     }
 
     gWidgetFont = 100;
+    DbgPrint("[windowManagerInit] gWidgetFont set to: %d\n", gWidgetFont);
     fontSetCurrent(100);
-
+    DbgPrint("[windowManagerInit] fontSetCurrent(100) called\n");
+    DbgPrint("[windowManagerInit] Calling mouseManagerInit\n");
     mouseManagerInit();
+    DbgPrint("[windowManagerInit] mouseManagerInit returned\n");
 
+    DbgPrint("[windowManagerInit] Calling mouseManagerSetNameMangler\n");
     mouseManagerSetNameMangler(_interpretMangleName);
-
+    DbgPrint("[windowManagerInit] mouseManagerSetNameMangler done\n");
     for (i = 0; i < 64; i++) {
         for (j = 0; j < 256; j++) {
             _alphaBlendTable[(i << 8) + j] = ((i * j) >> 9);

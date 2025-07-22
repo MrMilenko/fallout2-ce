@@ -14,7 +14,29 @@
 #include "file_find.h"
 
 namespace fallout {
+#ifdef NXDK
+#include <cstring>
 
+extern "C" {
+
+// Dummy getcwd for NXDK — returns a fake working directory
+char* getcwd(char* buf, size_t size) {
+    if (!buf || size < 3) {
+        return nullptr;
+    }
+    std::strncpy(buf, "E:", size - 1);
+    buf[size - 1] = '\0';
+    return buf;
+}
+
+// Dummy chdir for NXDK — always "succeeds"
+int chdir(const char* path) {
+    // You can add debug prints or checks here if needed
+    return 0;
+}
+
+}
+#endif
 typedef enum XFileEnumerationEntryType {
     XFILE_ENUMERATION_ENTRY_TYPE_FILE,
     XFILE_ENUMERATION_ENTRY_TYPE_DIRECTORY,
@@ -53,7 +75,7 @@ int xfileClose(XFile* stream)
         rc = dfileClose(stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
-        rc = gzclose(stream->gzfile);
+        //rc = gzclose(stream->gzfile);
         break;
     default:
         rc = fclose(stream->file);
@@ -71,92 +93,127 @@ int xfileClose(XFile* stream)
 XFile* xfileOpen(const char* filePath, const char* mode)
 {
     assert(filePath); // "filename", "xfile.c", 162
-    assert(mode); // "mode", "xfile.c", 163
+    assert(mode);     // "mode", "xfile.c", 163
+
+#ifdef NXDK
+    DbgPrint("[xfileOpen] filePath = %s, mode = %s\n", filePath, mode);
+#endif
 
     XFile* stream = (XFile*)malloc(sizeof(*stream));
     if (stream == nullptr) {
+#ifdef NXDK
+        DbgPrint("[xfileOpen] malloc failed\n");
+#endif
         return nullptr;
     }
 
     memset(stream, 0, sizeof(*stream));
 
-    // NOTE: Compiled code uses different lengths.
     char drive[COMPAT_MAX_DRIVE];
     char dir[COMPAT_MAX_DIR];
     compat_splitpath(filePath, drive, dir, nullptr, nullptr);
 
     char path[COMPAT_MAX_PATH];
     if (drive[0] != '\0' || dir[0] == '\\' || dir[0] == '/' || dir[0] == '.') {
-        // [filePath] is an absolute path. Attempt to open as plain stream.
+#ifdef NXDK
+        DbgPrint("[xfileOpen] Detected absolute or local path: %s\n", filePath);
+#endif
         stream->file = compat_fopen(filePath, mode);
         if (stream->file == nullptr) {
+#ifdef NXDK
+            DbgPrint("[xfileOpen] compat_fopen failed for absolute/local path: %s\n", filePath);
+#endif
             free(stream);
             return nullptr;
         }
 
         stream->type = XFILE_TYPE_FILE;
         snprintf(path, sizeof(path), "%s", filePath);
+#ifdef NXDK
+        DbgPrint("[xfileOpen] Opened plain file stream: %s\n", path);
+#endif
     } else {
-        // [filePath] is a relative path. Loop thru open xbases and attempt to
-        // open [filePath] from appropriate xbase.
+#ifdef NXDK
+        DbgPrint("[xfileOpen] Searching xbase chain for relative path: %s\n", filePath);
+#endif
         XBase* curr = gXbaseHead;
         while (curr != nullptr) {
+#ifdef NXDK
+            DbgPrint("  [xfileOpen] Checking xbase: %s (isDbase = %d)\n", curr->path, curr->isDbase);
+#endif
             if (curr->isDbase) {
-                // Attempt to open dfile stream from dbase.
                 stream->dfile = dfileOpen(curr->dbase, filePath, mode);
                 if (stream->dfile != nullptr) {
                     stream->type = XFILE_TYPE_DFILE;
                     snprintf(path, sizeof(path), "%s", filePath);
+#ifdef NXDK
+                    DbgPrint("  [xfileOpen] Opened dfile stream: %s\n", path);
+#endif
                     break;
                 }
             } else {
-                // Build path relative to directory-based xbase.
                 snprintf(path, sizeof(path), "%s\\%s", curr->path, filePath);
-
-                // Attempt to open plain stream.
                 stream->file = compat_fopen(path, mode);
                 if (stream->file != nullptr) {
                     stream->type = XFILE_TYPE_FILE;
+#ifdef NXDK
+                    DbgPrint("  [xfileOpen] Opened file in dir xbase: %s\n", path);
+#endif
                     break;
                 }
             }
             curr = curr->next;
         }
 
-        if (stream->file == nullptr) {
-            // File was not opened during the loop above. Attempt to open file
-            // relative to the current working directory.
+        if (stream->file == nullptr && stream->dfile == nullptr) {
+#ifdef NXDK
+            DbgPrint("[xfileOpen] Attempting fallback open in CWD for: %s\n", filePath);
+#endif
             stream->file = compat_fopen(filePath, mode);
             if (stream->file == nullptr) {
+#ifdef NXDK
+                DbgPrint("[xfileOpen] Fallback open failed for: %s\n", filePath);
+#endif
                 free(stream);
                 return nullptr;
             }
 
             stream->type = XFILE_TYPE_FILE;
             snprintf(path, sizeof(path), "%s", filePath);
+#ifdef NXDK
+            DbgPrint("[xfileOpen] Fallback open succeeded: %s\n", path);
+#endif
         }
     }
 
     if (stream->type == XFILE_TYPE_FILE) {
-        // Opened file is a plain stream, which might be gzipped. In this case
-        // first two bytes will contain magic numbers.
         int ch1 = fgetc(stream->file);
         int ch2 = fgetc(stream->file);
         if (ch1 == 0x1F && ch2 == 0x8B) {
-            // File is gzipped. Close plain stream and reopen this file as
-            // gzipped stream.
+#ifdef NXDK
+            DbgPrint("[xfileOpen] WARNING: GZip signature detected for %s, but gzip is disabled!\n", path);
+#endif
             fclose(stream->file);
-
-            stream->type = XFILE_TYPE_GZFILE;
-            stream->gzfile = compat_gzopen(path, mode);
+            free(stream);
+            return nullptr; // Fail outright instead of silently continuing
         } else {
-            // File is not gzipped.
             rewind(stream->file);
+#ifdef NXDK
+            DbgPrint("[xfileOpen] Opened regular file stream (not gzip): %s\n", path);
+#endif
         }
     }
 
+#ifdef NXDK
+    DbgPrint("[xfileOpen] Final stream type: %d (%s)\n",
+        stream->type,
+        stream->type == XFILE_TYPE_FILE ? "FILE" :
+        stream->type == XFILE_TYPE_DFILE ? "DFILE" : "UNKNOWN");
+#endif
+
     return stream;
 }
+
 
 // 0x4DF11C
 int xfilePrintFormatted(XFile* stream, const char* format, ...)
@@ -188,7 +245,7 @@ int xfilePrintFormattedArgs(XFile* stream, const char* format, va_list args)
         rc = dfilePrintFormattedArgs(stream->dfile, format, args);
         break;
     case XFILE_TYPE_GZFILE:
-        rc = gzvprintf(stream->gzfile, format, args);
+        //rc = gzvprintf(stream->gzfile, format, args);
         break;
     default:
         rc = vfprintf(stream->file, format, args);
@@ -210,7 +267,7 @@ int xfileReadChar(XFile* stream)
         ch = dfileReadChar(stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
-        ch = gzgetc(stream->gzfile);
+        //ch = gzgetc(stream->gzfile);
         break;
     default:
         ch = fgetc(stream->file);
@@ -223,26 +280,22 @@ int xfileReadChar(XFile* stream)
 // 0x4DF280
 char* xfileReadString(char* string, int size, XFile* stream)
 {
-    assert(string); // "s", "xfile.c", 375
-    assert(size); // "n", "xfile.c", 376
-    assert(stream); // "stream", "xfile.c", 377
 
-    char* result;
+    if (!string || size <= 0 || !stream) {
+        return nullptr;
+    }
 
     switch (stream->type) {
     case XFILE_TYPE_DFILE:
-        result = dfileReadString(string, size, stream->dfile);
-        break;
+        return dfileReadString(string, size, stream->dfile);
     case XFILE_TYPE_GZFILE:
-        result = compat_gzgets(stream->gzfile, string, size);
-        break;
+        return nullptr;
     default:
-        result = compat_fgets(string, size, stream->file);
-        break;
+        return compat_fgets(string, size, stream->file);
     }
-
-    return result;
 }
+
+
 
 // 0x4DF320
 int xfileWriteChar(int ch, XFile* stream)
@@ -256,7 +309,7 @@ int xfileWriteChar(int ch, XFile* stream)
         rc = dfileWriteChar(ch, stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
-        rc = gzputc(stream->gzfile, ch);
+        //rc = gzputc(stream->gzfile, ch);
         break;
     default:
         rc = fputc(ch, stream->file);
@@ -279,7 +332,7 @@ int xfileWriteString(const char* string, XFile* stream)
         rc = dfileWriteString(string, stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
-        rc = gzputs(stream->gzfile, string);
+        //rc = gzputs(stream->gzfile, string);
         break;
     default:
         rc = fputs(string, stream->file);
@@ -307,7 +360,7 @@ size_t xfileRead(void* ptr, size_t size, size_t count, XFile* stream)
         // concept, it works with bytes, and returns number of bytes read.
         // Depending on the [size] and [count] parameters this function can
         // return wrong result.
-        elementsRead = gzread(stream->gzfile, ptr, size * count);
+        //elementsRead = gzread(stream->gzfile, ptr, size * count);
         break;
     default:
         elementsRead = fread(ptr, size, count, stream->file);
@@ -335,7 +388,7 @@ size_t xfileWrite(const void* ptr, size_t size, size_t count, XFile* stream)
         // all), but [gzwrite] have no such concept, it works with bytes, and
         // returns number of bytes written. Depending on the [size] and [count]
         // parameters this function can return wrong result.
-        elementsWritten = gzwrite(stream->gzfile, ptr, size * count);
+        //elementsWritten = gzwrite(stream->gzfile, ptr, size * count);
         break;
     default:
         elementsWritten = fwrite(ptr, size, count, stream->file);
@@ -357,7 +410,7 @@ int xfileSeek(XFile* stream, long offset, int origin)
         result = dfileSeek(stream->dfile, offset, origin);
         break;
     case XFILE_TYPE_GZFILE:
-        result = gzseek(stream->gzfile, offset, origin);
+        //result = gzseek(stream->gzfile, offset, origin);
         break;
     default:
         result = fseek(stream->file, offset, origin);
@@ -379,7 +432,7 @@ long xfileTell(XFile* stream)
         pos = dfileTell(stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
-        pos = gztell(stream->gzfile);
+        //pos = gztell(stream->gzfile);
         break;
     default:
         pos = ftell(stream->file);
@@ -399,7 +452,7 @@ void xfileRewind(XFile* stream)
         dfileRewind(stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
-        gzrewind(stream->gzfile);
+        //gzrewind(stream->gzfile);
         break;
     default:
         rewind(stream->file);
@@ -419,7 +472,7 @@ int xfileEof(XFile* stream)
         rc = dfileEof(stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
-        rc = gzeof(stream->gzfile);
+        //rc = gzeof(stream->gzfile);
         break;
     default:
         rc = feof(stream->file);
@@ -441,7 +494,7 @@ long xfileGetSize(XFile* stream)
         fileSize = dfileGetSize(stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
-        fileSize = 0;
+        //fileSize = 0;
         break;
     default:
         fileSize = getFileSize(stream->file);

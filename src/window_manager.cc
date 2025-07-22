@@ -1,5 +1,7 @@
 #include "window_manager.h"
-
+#ifdef NXDK
+#include "xboxkrnl/xboxkrnl.h"
+#endif
 #include <string.h>
 
 #include <algorithm>
@@ -109,6 +111,7 @@ static void* _GNW_texture;
 // 0x6ADF40
 static ButtonGroup gButtonGroups[BUTTON_GROUP_LIST_CAPACITY];
 
+
 // 0x4D5C30
 int windowManagerInit(VideoSystemInitProc* videoSystemInitProc, VideoSystemExitProc* videoSystemExitProc, int a3)
 {
@@ -117,7 +120,14 @@ int windowManagerInit(VideoSystemInitProc* videoSystemInitProc, VideoSystemExitP
     GNW95_mutex = INVALID_HANDLE_VALUE;
 #endif
 
+#ifdef NXDK
+    DbgPrint("[windowManagerInit] Called with a3 = %d\n", a3);
+#endif
+
     if (_GNW95_already_running) {
+#ifdef NXDK
+        DbgPrint("[windowManagerInit] Program already running\n");
+#endif
         return WINDOW_MANAGER_ERR_ALREADY_RUNNING;
     }
 
@@ -128,6 +138,9 @@ int windowManagerInit(VideoSystemInitProc* videoSystemInitProc, VideoSystemExitP
 #endif
 
     if (gWindowSystemInitialized) {
+#ifdef NXDK
+        DbgPrint("[windowManagerInit] Window system already initialized\n");
+#endif
         return WINDOW_MANAGER_ERR_WINDOW_SYSTEM_ALREADY_INITIALIZED;
     }
 
@@ -137,35 +150,54 @@ int windowManagerInit(VideoSystemInitProc* videoSystemInitProc, VideoSystemExitP
 
     if (db_total() == 0) {
         if (dbOpen(nullptr, 0, _path_patches, 1) == -1) {
+#ifdef NXDK
+            DbgPrint("[windowManagerInit] Failed to open default database\n");
+#endif
             return WINDOW_MANAGER_ERR_INITIALIZING_DEFAULT_DATABASE;
         }
     }
 
     if (textFontsInit() == -1) {
+#ifdef NXDK
+        DbgPrint("[windowManagerInit] Failed to initialize text fonts\n");
+#endif
         return WINDOW_MANAGER_ERR_INITIALIZING_TEXT_FONTS;
     }
-
+#ifdef NXDK
+    DbgPrint("[windowManagerInit] textFontsInit() returned successfully\n");
+    DbgPrint("[windowManagerInit] Calling _get_start_mode_()\n");
+#endif
     _get_start_mode_();
-
+#ifdef NXDK
+    DbgPrint("[windowManagerInit] _get_start_mode_() returned successfully\n");
+#endif
     gVideoSystemInitProc = videoSystemInitProc;
     gVideoSystemExitProc = directInputFree;
 
     int rc = videoSystemInitProc();
     if (rc == -1) {
+#ifdef NXDK
+        DbgPrint("[windowManagerInit] videoSystemInitProc() failed\n");
+#endif
         if (gVideoSystemExitProc != nullptr) {
             gVideoSystemExitProc();
         }
-
         return WINDOW_MANAGER_ERR_INITIALIZING_VIDEO_MODE;
     }
 
     if (rc == 8) {
+#ifdef NXDK
+        DbgPrint("[windowManagerInit] videoSystemInitProc() returned error code 8\n");
+#endif
         return WINDOW_MANAGER_ERR_8;
     }
 
     if (a3 & 1) {
         _screen_buffer = (unsigned char*)internal_malloc((_scr_size.bottom - _scr_size.top + 1) * (_scr_size.right - _scr_size.left + 1));
         if (_screen_buffer == nullptr) {
+#ifdef NXDK
+            DbgPrint("[windowManagerInit] Failed to allocate _screen_buffer\n");
+#endif
             if (gVideoSystemExitProc != nullptr) {
                 gVideoSystemExitProc();
             } else {
@@ -178,41 +210,55 @@ int windowManagerInit(VideoSystemInitProc* videoSystemInitProc, VideoSystemExitP
 
     _buffering = false;
     _doing_refresh_all = 0;
-
+    DbgPrint("[windowManagerInit] _buffering and _doing_refresh_all initialized\n");
+    DbgPrint("[windowManagerInit] Calling _initColors()\n");
     if (!_initColors()) {
         unsigned char* palette = (unsigned char*)internal_malloc(768);
         if (palette == nullptr) {
+#ifdef NXDK
+            DbgPrint("[windowManagerInit] Failed to allocate fallback palette\n");
+#endif
             if (gVideoSystemExitProc != nullptr) {
+                DbgPrint("[windowManagerInit] Calling gVideoSystemExitProc\n");
                 gVideoSystemExitProc();
             } else {
+                DbgPrint("[windowManagerInit] Calling directDrawFree\n");
                 directDrawFree();
             }
 
             if (_screen_buffer != nullptr) {
+                DbgPrint("[windowManagerInit] Freeing _screen_buffer\n");
                 internal_free(_screen_buffer);
             }
 
             return WINDOW_MANAGER_ERR_NO_MEMORY;
         }
-
+        DbgPrint("[windowManagerInit] Calling bufferFill\n");
         bufferFill(palette, 768, 1, 768, 0);
 
         // TODO: Incomplete.
         // _colorBuildColorTable(_getSystemPalette(), palette);
-
+        DbgPrint("[windowManagerInit] Calling internal_free\n");
         internal_free(palette);
     }
-
+    DbgPrint("[windowManagerInit] _initColors() completed successfully\n");
+    DbgPrint("[windowManagerInit] Calling _GNW_debug_init()\n");
     _GNW_debug_init();
 
-    if (inputInit(a3) == -1) {
-        return WINDOW_MANAGER_ERR_INITIALIZING_INPUT;
-    }
+    //if (inputInit(a3) == -1) {
+//#ifdef NXDK
+//        DbgPrint("[windowManagerInit] inputInit() failed\n");
+//#endif
+//        return WINDOW_MANAGER_ERR_INITIALIZING_INPUT;
+//    }
 
     _GNW_intr_init();
 
     Window* window = gWindows[0] = (Window*)internal_malloc(sizeof(*window));
     if (window == nullptr) {
+#ifdef NXDK
+        DbgPrint("[windowManagerInit] Failed to allocate root window\n");
+#endif
         if (gVideoSystemExitProc != nullptr) {
             gVideoSystemExitProc();
         } else {
@@ -255,10 +301,15 @@ int windowManagerInit(VideoSystemInitProc* videoSystemInitProc, VideoSystemExitP
     _GNW_wcolor[2] = 8456;
     _GNW_wcolor[1] = 15855;
 
+#ifdef NXDK
+    DbgPrint("[windowManagerInit] Initialization complete\n");
+#endif
+
     atexit(windowManagerExit);
 
     return WINDOW_MANAGER_OK;
 }
+
 
 // 0x4D616C
 void windowManagerExit(void)
@@ -1336,6 +1387,12 @@ void programWindowSetTitle(const char* title)
 // 0x4D8200
 bool showMesageBox(const char* text)
 {
+#ifdef NXDK
+    DbgPrint("[showMesageBox] Opening simulated message box...\n");
+    DbgPrint("[showMesageBox] Message: %s\n", text);
+    DbgPrint("[showMesageBox] Closing simulated message box.\n");
+    return true;
+#else
     SDL_Cursor* prev = SDL_GetCursor();
     SDL_Cursor* cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
     SDL_SetCursor(cursor);
@@ -1345,7 +1402,9 @@ bool showMesageBox(const char* text)
     SDL_SetCursor(prev);
     SDL_FreeCursor(cursor);
     return true;
+#endif
 }
+
 
 // 0x4D8260
 int buttonCreate(int win, int x, int y, int width, int height, int mouseEnterEventCode, int mouseExitEventCode, int mouseDownEventCode, int mouseUpEventCode, unsigned char* up, unsigned char* dn, unsigned char* hover, int flags)

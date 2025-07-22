@@ -1,6 +1,8 @@
 #include "game_config.h"
 #include "sfall_config.h"
-
+#ifdef NXDK
+#include "xboxkrnl/xboxkrnl.h"
+#endif
 #include <stdio.h>
 #include <string.h>
 
@@ -124,12 +126,14 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
         configSetInt(&gGameConfig, GAME_CONFIG_MAPPER_KEY, GAME_CONFIG_SORT_SCRIPT_LIST_KEY, 0);
     }
 
+#ifndef NXDK
     // CE: Detect alternative default music directory.
+    DbgPrint("[gameConfigInit] Detecting alternative music directory...\n");
     char alternativeMusicPath[COMPAT_MAX_PATH];
     strcpy(alternativeMusicPath, "data\\sound\\music\\*.acm");
     compat_windows_path_to_native(alternativeMusicPath);
     compat_resolve_path(alternativeMusicPath);
-
+    DbgPrint("[gameConfigInit] Alternative music path: %s\n", alternativeMusicPath);
     char** acms;
     int acmsLength = fileNameListInit(alternativeMusicPath, &acms, 0, 0);
     if (acmsLength != -1) {
@@ -139,16 +143,26 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
         }
         fileNameListFree(&acms, 0);
     }
+    DbgPrint("[gameConfigInit] Alternative music directory detection done\n");
+#else
+    DbgPrint("[gameConfigInit] Skipping wildcard music detection under NXDK\n");
+#endif
 
+    DbgPrint("[gameConfigInit] Using config file: %s\n", gGameConfigFilePath);
     // SFALL: Custom config file name.
     char* customConfigFileName = nullptr;
     configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_CONFIG_FILE, &customConfigFileName);
 
-    const char* configFileName = customConfigFileName != nullptr && *customConfigFileName != '\0'
+    const char* configFileName = (customConfigFileName != nullptr && *customConfigFileName != '\0')
         ? customConfigFileName
         : DEFAULT_GAME_CONFIG_FILE_NAME;
-
-    // Make `fallout2.cfg` file path.
+    DbgPrint("[gameConfigInit] Using config file name: %s\n", configFileName);
+#ifdef NXDK
+    // On Xbox, use a fixed config path
+    snprintf(gGameConfigFilePath, sizeof(gGameConfigFilePath), "E:\\UDATA\\FALLOUT2\\fallout2.cfg");
+    DbgPrint("[gameConfigInit] Using fixed config path: %s\n", gGameConfigFilePath);
+#else
+    // Desktop-style dynamic path construction
     char* executable = argv[0];
     char* ch = strrchr(executable, '\\');
     if (ch != nullptr) {
@@ -174,16 +188,21 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
             strcpy(gGameConfigFilePath, configFileName);
         }
     }
+#endif
+    DbgPrint("[gameConfigInit] Config file path: %s\n", gGameConfigFilePath);
 
     // Read contents of `fallout2.cfg` into config. The values from the file
     // will override the defaults above.
+    DbgPrint("[gameConfigInit] Reading config file: %s\n", gGameConfigFilePath);
     configRead(&gGameConfig, gGameConfigFilePath, false);
 
     // Add key-values from command line, which overrides both defaults and
     // whatever was loaded from `fallout2.cfg`.
+    DbgPrint("[gameConfigInit] Parsing command line arguments\n");
     configParseCommandLineArguments(&gGameConfig, argc, argv);
 
     // CE: Normalize and resolve asset bundle paths.
+    DbgPrint("[gameConfigInit] Resolving paths for game config keys\n");
     gameConfigResolvePath(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_MASTER_DAT_KEY);
     gameConfigResolvePath(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_MASTER_PATCHES_KEY);
     gameConfigResolvePath(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_CRITTER_DAT_KEY);
@@ -192,8 +211,10 @@ bool gameConfigInit(bool isMapper, int argc, char** argv)
     gameConfigResolvePath(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_PATH1_KEY);
     gameConfigResolvePath(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_PATH2_KEY);
 
+    DbgPrint("[gameConfigInit] Game config paths resolved\n");
     gGameConfigInitialized = true;
 
+    DbgPrint("[gameConfigInit] Game config initialized successfully\n");
     return true;
 }
 

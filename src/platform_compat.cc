@@ -8,7 +8,14 @@
 
 #ifdef _WIN32
 #include <direct.h>
+#ifndef NXDK
 #include <io.h>
+#include <fcntl.h>
+#endif
+
+#ifndef O_WRONLY
+#define O_WRONLY 0x01 // Define O_WRONLY if not defined
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #else
@@ -18,7 +25,9 @@
 #endif
 
 #ifdef _WIN32
+#ifndef NXDK
 #include <timeapi.h>
+#endif
 #else
 #include <chrono>
 #endif
@@ -54,9 +63,7 @@ char* compat_itoa(int value, char* buffer, int radix)
 
 void compat_splitpath(const char* path, char* drive, char* dir, char* fname, char* ext)
 {
-#ifdef _WIN32
-    _splitpath(path, drive, dir, fname, ext);
-#else
+    DbgPrint("compat_splitpath: %s\n", path);
     const char* driveStart = path;
     if (path[0] == '/' && path[1] == '/') {
         path += 2;
@@ -65,7 +72,7 @@ void compat_splitpath(const char* path, char* drive, char* dir, char* fname, cha
         }
     }
 
-    if (drive != nullptr) {
+    if (drive != NULL) {
         size_t driveSize = path - driveStart;
         if (driveSize > COMPAT_MAX_DRIVE - 1) {
             driveSize = COMPAT_MAX_DRIVE - 1;
@@ -76,7 +83,7 @@ void compat_splitpath(const char* path, char* drive, char* dir, char* fname, cha
 
     const char* dirStart = path;
     const char* fnameStart = path;
-    const char* extStart = nullptr;
+    const char* extStart = NULL;
 
     const char* end = path;
     while (*end != '\0') {
@@ -88,11 +95,11 @@ void compat_splitpath(const char* path, char* drive, char* dir, char* fname, cha
         end++;
     }
 
-    if (extStart == nullptr) {
+    if (extStart == NULL) {
         extStart = end;
     }
 
-    if (dir != nullptr) {
+    if (dir != NULL) {
         size_t dirSize = fnameStart - dirStart;
         if (dirSize > COMPAT_MAX_DIR - 1) {
             dirSize = COMPAT_MAX_DIR - 1;
@@ -101,7 +108,7 @@ void compat_splitpath(const char* path, char* drive, char* dir, char* fname, cha
         dir[dirSize] = '\0';
     }
 
-    if (fname != nullptr) {
+    if (fname != NULL) {
         size_t fileNameSize = extStart - fnameStart;
         if (fileNameSize > COMPAT_MAX_FNAME - 1) {
             fileNameSize = COMPAT_MAX_FNAME - 1;
@@ -110,7 +117,7 @@ void compat_splitpath(const char* path, char* drive, char* dir, char* fname, cha
         fname[fileNameSize] = '\0';
     }
 
-    if (ext != nullptr) {
+    if (ext != NULL) {
         size_t extSize = end - extStart;
         if (extSize > COMPAT_MAX_EXT - 1) {
             extSize = COMPAT_MAX_EXT - 1;
@@ -118,17 +125,15 @@ void compat_splitpath(const char* path, char* drive, char* dir, char* fname, cha
         strncpy(ext, extStart, extSize);
         ext[extSize] = '\0';
     }
-#endif
+
 }
 
 void compat_makepath(char* path, const char* drive, const char* dir, const char* fname, const char* ext)
 {
-#ifdef _WIN32
-    _makepath(path, drive, dir, fname, ext);
-#else
+    DbgPrint("compat_makepath: %s\n", path);
     path[0] = '\0';
 
-    if (drive != nullptr) {
+    if (drive != NULL) {
         if (*drive != '\0') {
             strcpy(path, drive);
             path = strchr(path, '\0');
@@ -141,7 +146,7 @@ void compat_makepath(char* path, const char* drive, const char* dir, const char*
         }
     }
 
-    if (dir != nullptr) {
+    if (dir != NULL) {
         if (*dir != '\0') {
             if (*dir != '/' && *path == '/') {
                 path++;
@@ -171,7 +176,7 @@ void compat_makepath(char* path, const char* drive, const char* dir, const char*
         }
     }
 
-    if (ext != nullptr) {
+    if (ext != NULL) {
         if (*ext != '\0') {
             if (*ext != '.') {
                 *path++ = '.';
@@ -183,20 +188,67 @@ void compat_makepath(char* path, const char* drive, const char* dir, const char*
     }
 
     *path = '\0';
+}
+
+int compat_open(const char* filePath, int flags)
+{
+#ifdef NXDK
+    char nativePath[COMPAT_MAX_PATH];
+    strcat(nativePath, filePath);
+    compat_windows_path_to_native(nativePath);
+    const char* mode = (flags & O_WRONLY) ? "wb" : "rb";
+    FILE* fp = fopen(nativePath, mode);
+
+    // NXDK seemingly doesn't support "rt" mode, so we use "rb" instead
+    if (strcmp(mode, "rt") == 0) {
+        FILE* fp = fopen(nativePath, "rb");
+    } else {
+        FILE* fp = fopen(nativePath, mode);
+    }
+    return fp ? reinterpret_cast<intptr_t>(fp) : -1;
+#else
+    const char* mode = (flags & O_WRONLY) ? "wb" : "rb";
+    FILE* fp = fopen(filePath, mode);
+    return fp ? reinterpret_cast<intptr_t>(fp) : -1;
 #endif
 }
 
-long compat_tell(int fd)
+int compat_close(int fileHandle)
 {
-    return lseek(fd, 0, SEEK_CUR);
+    FILE* fp = reinterpret_cast<FILE*>(fileHandle);
+    int result = fclose(fp);
+    return result == 0 ? 0 : -1;
 }
 
+int compat_read(int fileHandle, void* buf, unsigned int size)
+{
+    DbgPrint("compat_read: %s %d\n", fileHandle, size);
+    FILE* fp = reinterpret_cast<FILE*>(fileHandle);
+    return fread(buf, 1, size, fp);
+}
+
+int compat_write(int fileHandle, const void* buf, unsigned int size)
+{
+    FILE* fp = reinterpret_cast<FILE*>(fileHandle);
+    return fwrite(buf, 1, size, fp);
+}
+
+long compat_lseek(int fileHandle, long offset, int origin)
+{
+    DbgPrint("compat_lseek: %i\n", fileHandle);
+    FILE* fp = reinterpret_cast<FILE*>(fileHandle);
+    return fseek(fp, offset, origin) == 0 ? ftell(fp) : -1;
+}
+long compat_tell(int fd)
+{
+    return compat_lseek(fd, 0, SEEK_CUR);
+}
 long compat_filelength(int fd)
 {
-    long originalOffset = lseek(fd, 0, SEEK_CUR);
-    lseek(fd, 0, SEEK_SET);
-    long filesize = lseek(fd, 0, SEEK_END);
-    lseek(fd, originalOffset, SEEK_SET);
+    long originalOffset = compat_lseek(fd, 0, SEEK_CUR);
+    compat_lseek(fd, 0, SEEK_SET);
+    long filesize = compat_lseek(fd, 0, SEEK_END);
+    compat_lseek(fd, originalOffset, SEEK_SET);
     return filesize;
 }
 
@@ -208,7 +260,12 @@ int compat_mkdir(const char* path)
     compat_resolve_path(nativePath);
 
 #ifdef _WIN32
+    #ifdef NXDK
+    DbgPrint("compat_mkdir: %s\n", nativePath);
+    return CreateDirectoryA(nativePath, NULL);
+    #else
     return mkdir(nativePath);
+    #endif
 #else
     return mkdir(nativePath, 0755);
 #endif
@@ -216,7 +273,12 @@ int compat_mkdir(const char* path)
 
 unsigned int compat_timeGetTime()
 {
-#ifdef _WIN32
+#ifdef NXDK
+    static DWORD start = GetTickCount();
+    DWORD now = GetTickCount();
+    //DbgPrint("compat_timeGetTime %i\n", now - start);
+    return now - start;
+#elif defined(_WIN32)
     return timeGetTime();
 #else
     static auto start = std::chrono::steady_clock::now();
@@ -228,12 +290,29 @@ unsigned int compat_timeGetTime()
 FILE* compat_fopen(const char* path, const char* mode)
 {
     char nativePath[COMPAT_MAX_PATH];
+#ifdef NXDK
+    strcpy(nativePath, path);
+    compat_windows_path_to_native(nativePath);
+    // if (mode && (mode[0] == 'w' || mode[0] == 'a')) {
+    //     DbgPrint("compat_fopen: creating/writing file: %s (mode: %s)\n", nativePath, mode);
+    // } else {
+    //     DbgPrint("compat_fopen: opening file: %s (mode: %s)\n", nativePath, mode);
+    // }
+    if (strcmp(mode, "rt") == 0) {
+        // NXDK seemingly doesn't support "rt" mode, so we use "rb" instead
+        return fopen(nativePath, "rb");
+    } else {
+        return fopen(nativePath, mode);
+    }
+#else
     strcpy(nativePath, path);
     compat_windows_path_to_native(nativePath);
     compat_resolve_path(nativePath);
     return fopen(nativePath, mode);
+#endif
 }
 
+/*
 gzFile compat_gzopen(const char* path, const char* mode)
 {
     char nativePath[COMPAT_MAX_PATH];
@@ -242,7 +321,7 @@ gzFile compat_gzopen(const char* path, const char* mode)
     compat_resolve_path(nativePath);
     return gzopen(nativePath, mode);
 }
-
+*/
 char* compat_fgets(char* buffer, int maxCount, FILE* stream)
 {
     buffer = fgets(buffer, maxCount, stream);
@@ -257,7 +336,7 @@ char* compat_fgets(char* buffer, int maxCount, FILE* stream)
 
     return buffer;
 }
-
+/*
 char* compat_gzgets(gzFile stream, char* buffer, int maxCount)
 {
     buffer = gzgets(stream, buffer, maxCount);
@@ -272,7 +351,7 @@ char* compat_gzgets(gzFile stream, char* buffer, int maxCount)
 
     return buffer;
 }
-
+*/
 int compat_remove(const char* path)
 {
     char nativePath[COMPAT_MAX_PATH];
@@ -363,7 +442,12 @@ void compat_resolve_path(char* path)
     }
 #endif
 }
-
+#ifdef NXDK
+int access(const char* pathname, int mode) {
+    DWORD attrs = GetFileAttributesA(pathname);
+    return (attrs == INVALID_FILE_ATTRIBUTES) ? -1 : 0;
+}
+#endif
 int compat_access(const char* path, int mode)
 {
     char nativePath[COMPAT_MAX_PATH];

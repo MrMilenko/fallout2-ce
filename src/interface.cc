@@ -308,8 +308,9 @@ int interfaceInit()
     if (gInterfaceBarWindow != -1) {
         return -1;
     }
-
+    DbgPrint("[interfaceInit] customInterfaceBarInit called\n");
     customInterfaceBarInit();
+    DbgPrint("[interfaceInit] customInterfaceBarInit succeeded\n");
 
     gInterfaceBarActionPointsBarRect = { 316 + gInterfaceBarContentOffset, 14, 406 + gInterfaceBarContentOffset, 19 };
     gInterfaceBarEndButtonsRect = { 580 + gInterfaceBarContentOffset, 38, 637 + gInterfaceBarContentOffset, 96 };
@@ -317,34 +318,56 @@ int interfaceInit()
 
     gInterfaceBarInitialized = true;
 
+    DbgPrint("[interfaceInit] interfaceBarWindowX creation called\n");
     int interfaceBarWindowX = (screenGetWidth() - gInterfaceBarWidth) / 2;
-    int interfaceBarWindowY = screenGetHeight() - INTERFACE_BAR_HEIGHT;
+    DbgPrint("[interfaceInit] interfaceBarWindowX passed\n");
 
+    DbgPrint("[interfaceInit] interfaceBarWindowY creation called\n");
+    int interfaceBarWindowY = screenGetHeight() - INTERFACE_BAR_HEIGHT;
+    DbgPrint("[interfaceInit] interfaceBarWindowY passed\n");
+
+    DbgPrint("[interfaceInit] windowCreate called\n");
     gInterfaceBarWindow = windowCreate(interfaceBarWindowX, interfaceBarWindowY, gInterfaceBarWidth, INTERFACE_BAR_HEIGHT, _colorTable[0], WINDOW_HIDDEN);
     if (gInterfaceBarWindow == -1) {
         // NOTE: Uninline.
         return intface_fatal_error(-1);
     }
+    DbgPrint("[interfaceInit] windowCreate passed\n");
 
+    DbgPrint("[interfaceInit] windowGetBuffer called\n");
     gInterfaceWindowBuffer = windowGetBuffer(gInterfaceBarWindow);
     if (gInterfaceWindowBuffer == nullptr) {
         // NOTE: Uninline.
         return intface_fatal_error(-1);
     }
+    DbgPrint("[interfaceInit] windowGetBuffer passed\n");
+
 
     if (gInterfaceBarIsCustom) {
+        DbgPrint("[interfaceInit] customInterfaceBarGetBackgroundImageData called\n");
         blitBufferToBuffer(customInterfaceBarGetBackgroundImageData(), gInterfaceBarWidth, INTERFACE_BAR_HEIGHT - 1, gInterfaceBarWidth, gInterfaceWindowBuffer, gInterfaceBarWidth);
+        DbgPrint("[interfaceInit] customInterfaceBarGetBackgroundImageData passed\n");
     } else {
         FrmImage backgroundFrmImage;
+        DbgPrint("[interfaceInit] buildFid called\n");
         fid = buildFid(OBJ_TYPE_INTERFACE, 16, 0, 0, 0);
+        DbgPrint("[interfaceInit] buildFid passed\n");
+
+        DbgPrint("[interfaceInit] backgroundFrmImage.lock called\n");
         if (!backgroundFrmImage.lock(fid)) {
             return intface_fatal_error(-1);
         }
+        DbgPrint("[interfaceInit] backgroundFrmImage.lock passed\n");
 
+        DbgPrint("[interfaceInit] blitBufferToBuffer called\n");
         blitBufferToBuffer(backgroundFrmImage.getData(), gInterfaceBarWidth, INTERFACE_BAR_HEIGHT - 1, gInterfaceBarWidth, gInterfaceWindowBuffer, gInterfaceBarWidth);
+        DbgPrint("[interfaceInit] blitBufferToBuffer passed\n");
+        DbgPrint("[interfaceInit] backgroundFrmImage.unlock called\n");
         backgroundFrmImage.unlock();
+        DbgPrint("[interfaceInit] backgroundFrmImage.unlock passed\n");
     }
 
+    DbgPrint("[interfaceInit] buildFid \n");
     fid = buildFid(OBJ_TYPE_INTERFACE, 47, 0, 0, 0);
     if (!_inventoryButtonNormalFrmImage.lock(fid)) {
         // NOTE: Uninline.
@@ -573,9 +596,13 @@ int interfaceInit()
     gInterfaceCurrentHand = HAND_LEFT;
 
     // NOTE: Uninline.
+    DbgPrint("[interfaceInit] intface_init_items called\n");
     intface_init_items();
+    DbgPrint("[interfaceInit] intface_init_items passed\n");
 
+    DbgPrint("[interfaceInit] displayMonitorInit called\n");
     displayMonitorInit();
+    DbgPrint("[interfaceInit] displayMonitorInit passed\n");
 
     // SFALL
     sidePanelsInit();

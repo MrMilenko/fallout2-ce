@@ -1,5 +1,7 @@
 #include "sound_effects_list.h"
-
+#ifdef NXDK
+#include "xboxkrnl/xboxkrnl.h"
+#endif
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -321,36 +323,48 @@ static int soundEffectsListPopulateFileNames()
         extension = "*.ACM";
         break;
     default:
+        DbgPrint("[soundEffectsListPopulateFileNames] Unknown compression type: %d\n", _sfxl_compression);
         return SFXL_ERR;
     }
 
+    DbgPrint("[soundEffectsListPopulateFileNames] Using extension: %s\n", extension);
+
     char* pattern = (char*)internal_malloc(strlen(gSoundEffectsListPath) + strlen(extension) + 1);
     if (pattern == nullptr) {
+        DbgPrint("[soundEffectsListPopulateFileNames] Failed to allocate pattern buffer\n");
         return SFXL_ERR;
     }
 
     strcpy(pattern, gSoundEffectsListPath);
     strcat(pattern, extension);
 
+    DbgPrint("[soundEffectsListPopulateFileNames] Pattern built: %s\n", pattern);
+
     char** fileNameList;
     gSoundEffectsListEntriesLength = fileNameListInit(pattern, &fileNameList, 0, 0);
+    DbgPrint("[soundEffectsListPopulateFileNames] Entries found: %d\n", gSoundEffectsListEntriesLength);
+
     internal_free(pattern);
 
     if (gSoundEffectsListEntriesLength > 10000) {
+        DbgPrint("[soundEffectsListPopulateFileNames] Entry limit exceeded\n");
         fileNameListFree(&fileNameList, 0);
         return SFXL_ERR;
     }
 
     if (gSoundEffectsListEntriesLength <= 0) {
+        DbgPrint("[soundEffectsListPopulateFileNames] No entries found\n");
         return SFXL_ERR;
     }
 
     gSoundEffectsListEntries = (SoundEffectsListEntry*)internal_malloc(sizeof(*gSoundEffectsListEntries) * gSoundEffectsListEntriesLength);
     if (gSoundEffectsListEntries == nullptr) {
+        DbgPrint("[soundEffectsListPopulateFileNames] Failed to allocate gSoundEffectsListEntries\n");
         fileNameListFree(&fileNameList, 0);
         return SFXL_ERR;
     }
 
+    DbgPrint("[soundEffectsListPopulateFileNames] Allocated %d SoundEffectsListEntry structs\n", gSoundEffectsListEntriesLength);
     memset(gSoundEffectsListEntries, 0, sizeof(*gSoundEffectsListEntries) * gSoundEffectsListEntriesLength);
 
     int err = soundEffectsListCopyFileNames(fileNameList);
@@ -358,28 +372,40 @@ static int soundEffectsListPopulateFileNames()
     fileNameListFree(&fileNameList, 0);
 
     if (err != SFXL_OK) {
+        DbgPrint("[soundEffectsListPopulateFileNames] soundEffectsListCopyFileNames failed with error %d\n", err);
         soundEffectsListClear();
         return err;
     }
 
+    DbgPrint("[soundEffectsListPopulateFileNames] Completed successfully\n");
     return SFXL_OK;
 }
+
 
 // sfxl_copy_names
 // 0x4AA000
 static int soundEffectsListCopyFileNames(char** fileNameList)
 {
+    DbgPrint("[soundEffectsListCopyFileNames] Copying %d entries...\n", gSoundEffectsListEntriesLength);
+
     for (int index = 0; index < gSoundEffectsListEntriesLength; index++) {
         SoundEffectsListEntry* entry = &(gSoundEffectsListEntries[index]);
-        entry->name = internal_strdup(*fileNameList++);
+        entry->name = internal_strdup(*fileNameList);
+
         if (entry->name == nullptr) {
+            DbgPrint("[soundEffectsListCopyFileNames] Failed to duplicate name at index %d\n", index);
             soundEffectsListClear();
             return SFXL_ERR;
         }
+
+        DbgPrint("[soundEffectsListCopyFileNames] [%d] Copied name: %s\n", index, entry->name);
+        fileNameList++;
     }
 
+    DbgPrint("[soundEffectsListCopyFileNames] Done copying names.\n");
     return SFXL_OK;
 }
+
 
 // 0x4AA050
 static int soundEffectsListPopulateFileSizes()

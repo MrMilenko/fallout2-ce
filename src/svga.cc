@@ -1,5 +1,5 @@
 #include "svga.h"
-
+#include <hal/video.h>
 #include <limits.h>
 #include <string.h>
 
@@ -16,8 +16,8 @@
 
 namespace fallout {
 
-static bool createRenderer(int width, int height);
-static void destroyRenderer();
+bool createRenderer(int width, int height);
+void destroyRenderer();
 
 // screen rect
 Rect _scr_size;
@@ -104,33 +104,57 @@ int _GNW95_init_mode_ex(int width, int height, int bpp)
     bool fullscreen = true;
     int scale = 1;
 
+#ifdef NXDK
+    DbgPrint("[_GNW95_init_mode_ex] Requested: %dx%d @ %dbpp\n", width, height, bpp);
+#endif
+
     Config resolutionConfig;
     if (configInit(&resolutionConfig)) {
-        if (configRead(&resolutionConfig, "f2_res.ini", false)) {
+        if (configRead(&resolutionConfig, "D:\\f2_res.ini", false)) {
+#ifdef NXDK
+            DbgPrint("[_GNW95_init_mode_ex] f2_res.ini loaded\n");
+#endif
             int screenWidth;
             if (configGetInt(&resolutionConfig, "MAIN", "SCR_WIDTH", &screenWidth)) {
                 width = screenWidth;
+#ifdef NXDK
+                DbgPrint("[_GNW95_init_mode_ex] Config SCR_WIDTH = %d\n", width);
+#endif
             }
 
             int screenHeight;
             if (configGetInt(&resolutionConfig, "MAIN", "SCR_HEIGHT", &screenHeight)) {
                 height = screenHeight;
+#ifdef NXDK
+                DbgPrint("[_GNW95_init_mode_ex] Config SCR_HEIGHT = %d\n", height);
+#endif
             }
 
             bool windowed;
             if (configGetBool(&resolutionConfig, "MAIN", "WINDOWED", &windowed)) {
                 fullscreen = !windowed;
+#ifdef NXDK
+                DbgPrint("[_GNW95_init_mode_ex] Windowed mode: %d -> Fullscreen: %d\n", windowed, fullscreen);
+#endif
             }
 
             int scaleValue;
             if (configGetInt(&resolutionConfig, "MAIN", "SCALE_2X", &scaleValue)) {
-                scale = scaleValue + 1; // 0 = 1x, 1 = 2x
-                // Only allow scaling if resulting game resolution is >= 640x480
+                scale = scaleValue + 1;
+#ifdef NXDK
+                DbgPrint("[_GNW95_init_mode_ex] SCALE_2X = %d, computed scale = %d\n", scaleValue, scale);
+#endif
                 if ((width / scale) < 640 || (height / scale) < 480) {
+#ifdef NXDK
+                    DbgPrint("[_GNW95_init_mode_ex] Scale would result in < 640x480, disabling scaling.\n");
+#endif
                     scale = 1;
                 } else {
                     width /= scale;
                     height /= scale;
+#ifdef NXDK
+                    DbgPrint("[_GNW95_init_mode_ex] Final scaled resolution: %dx%d\n", width, height);
+#endif
                 }
             }
 
@@ -138,15 +162,29 @@ int _GNW95_init_mode_ex(int width, int height, int bpp)
             configGetInt(&resolutionConfig, "IFACE", "IFACE_BAR_WIDTH", &gInterfaceBarWidth);
             configGetInt(&resolutionConfig, "IFACE", "IFACE_BAR_SIDE_ART", &gInterfaceSidePanelsImageId);
             configGetBool(&resolutionConfig, "IFACE", "IFACE_BAR_SIDES_ORI", &gInterfaceSidePanelsExtendFromScreenEdge);
+        } else {
+#ifdef NXDK
+            DbgPrint("[_GNW95_init_mode_ex] Failed to read f2_res.ini\n");
+#endif
         }
         configFree(&resolutionConfig);
+    } else {
+#ifdef NXDK
+        DbgPrint("[_GNW95_init_mode_ex] configInit failed\n");
+#endif
     }
 
     if (_GNW95_init_window(width, height, fullscreen, scale) == -1) {
+#ifdef NXDK
+        DbgPrint("[_GNW95_init_mode_ex] _GNW95_init_window failed\n");
+#endif
         return -1;
     }
 
     if (directDrawInit(width, height, bpp) == -1) {
+#ifdef NXDK
+        DbgPrint("[_GNW95_init_mode_ex] directDrawInit failed\n");
+#endif
         return -1;
     }
 
@@ -160,8 +198,13 @@ int _GNW95_init_mode_ex(int width, int height, int bpp)
     _zero_mem = _GNW95_zero_vid_mem;
     _mouse_blit = _GNW95_ShowRect;
 
+#ifdef NXDK
+    DbgPrint("[_GNW95_init_mode_ex] Success. Screen rect = (%d,%d)-(%d,%d)\n", _scr_size.left, _scr_size.top, _scr_size.right, _scr_size.bottom);
+#endif
+
     return 0;
 }
+
 
 // 0x4CAECC
 int _init_vesa_mode(int width, int height)
@@ -229,6 +272,7 @@ int directDrawInit(int width, int height, int bpp)
 
     return 0;
 }
+
 
 // 0x4CB1B0
 void directDrawFree()
@@ -364,9 +408,13 @@ static bool createRenderer(int width, int height)
     if (SDL_RenderSetLogicalSize(gSdlRenderer, width, height) != 0) {
         return false;
     }
-
+// Fallout1-CE-Xbox Call
+#ifdef NXDK // NXDK TODO: See if this is optimal...
     gSdlTexture = SDL_CreateTexture(gSdlRenderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, width, height);
-    if (gSdlTexture == nullptr) {
+#else
+    gSdlTexture = SDL_CreateTexture(gSdlRenderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, width, height);
+#endif
+    if (gSdlTexture == NULL) {
         return false;
     }
 

@@ -118,39 +118,50 @@ MessageList gMiscMessageList;
 
 // CE: Sonora folks like to store objects in global variables.
 static void** gGameGlobalPointers = nullptr;
-
-// 0x442580
 int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int a4, int argc, char** argv)
 {
+    DbgPrint("[gameInitWithOptions] Starting initialization...\n");
+    DbgPrint("[gameInitWithOptions] calling char path[COMPAT_MAX_PATH]\n");
     char path[COMPAT_MAX_PATH];
 
+    DbgPrint("[gameInitWithOptions] calling gameMemoryInit()\n");
     if (gameMemoryInit() == -1) {
+        DbgPrint("[gameInitWithOptions] gameMemoryInit failed\n");
         return -1;
     }
+    DbgPrint("[gameInitWithOptions] gameMemoryInit done\n");
 
-    // Sfall config should be initialized before game config, since it can
-    // override it's file name.
+    DbgPrint("[gameInitWithOptions] calling sfallConfigInit(argc, argv)\n");
     sfallConfigInit(argc, argv);
+    DbgPrint("[gameInitWithOptions] sfallConfigInit done\n");
 
     settingsInit(isMapper, argc, argv);
+    DbgPrint("[gameInitWithOptions] settingsInit done\n");
 
     gIsMapper = isMapper;
 
     if (gameDbInit() == -1) {
+        DbgPrint("[gameInitWithOptions] gameDbInit failed\n");
         settingsExit(false);
         sfallConfigExit();
         return -1;
     }
 
-    // Message list repository is considered a specialized file manager, so
-    // it should be initialized early in the process.
     messageListRepositoryInit();
+    DbgPrint("[gameInitWithOptions] messageListRepositoryInit done\n");
 
     programWindowSetTitle(windowTitle);
+    DbgPrint("[gameInitWithOptions] programWindowSetTitle done\n");
+    DbgPrint("[gameInitWithOptions] calling _initWindow(1, a4)\n");
     _initWindow(1, a4);
+    DbgPrint("[gameInitWithOptions] _initWindow done\n");
+    DbgPrint("[gameInitWithOptions] calling paletteInit()\n");
     paletteInit();
+    DbgPrint("[gameInitWithOptions] paletteInit done\n");
+    DbgPrint("[gameInitWithOptions] Window and palette initialized\n");
 
     const char* language = settings.system.language.c_str();
+    DbgPrint("[gameInitWithOptions] Language = %s\n", language);
     if (compat_stricmp(language, FRENCH) == 0) {
         keyboardSetLayout(KEYBOARD_LAYOUT_FRENCH);
     } else if (compat_stricmp(language, GERMAN) == 0) {
@@ -161,16 +172,17 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int a4
         keyboardSetLayout(KEYBOARD_LAYOUT_SPANISH);
     }
 
-    // SFALL: Allow to skip splash screen
     int skipOpeningMovies = 0;
     configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_SKIP_OPENING_MOVIES_KEY, &skipOpeningMovies);
+    DbgPrint("[gameInitWithOptions] skipOpeningMovies = %d\n", skipOpeningMovies);
 
     if (!gIsMapper && skipOpeningMovies < 2) {
         showSplash();
+        DbgPrint("[gameInitWithOptions] Splash screen shown\n");
     }
 
-    // CE: Handle debug mode (exactly as seen in `mapper2.exe`).
     const char* debugMode = settings.debug.mode.c_str();
+    DbgPrint("[gameInitWithOptions] Debug mode = %s\n", debugMode);
     if (compat_stricmp(debugMode, "environment") == 0) {
         _debug_register_env();
     } else if (compat_stricmp(debugMode, "screen") == 0) {
@@ -182,207 +194,226 @@ int gameInitWithOptions(const char* windowTitle, bool isMapper, int font, int a4
     } else if (compat_stricmp(debugMode, "gnw") == 0) {
         _debug_register_func(_win_debug);
     }
+interfaceFontsInit();
+DbgPrint("[gameInitWithOptions] interfaceFontsInit done\n");
 
-    interfaceFontsInit();
-    fontManagerAdd(&gModernFontManager);
-    fontSetCurrent(font);
+fontManagerAdd(&gModernFontManager);
+DbgPrint("[gameInitWithOptions] fontManagerAdd done\n");
 
-    screenshotHandlerConfigure(KEY_F12, gameTakeScreenshot);
+fontSetCurrent(font);
+DbgPrint("[gameInitWithOptions] fontSetCurrent done\n");
 
-    tileDisable();
+screenshotHandlerConfigure(KEY_F12, gameTakeScreenshot);
+DbgPrint("[gameInitWithOptions] screenshotHandlerConfigure done\n");
 
-    randomInit();
-    badwordsInit();
-    skillsInit();
-    statsInit();
+tileDisable();
+DbgPrint("[gameInitWithOptions] tileDisable done\n");
 
-    if (partyMembersInit() != 0) {
-        debugPrint("Failed on partyMember_init\n");
-        return -1;
-    }
+randomInit();
+DbgPrint("[gameInitWithOptions] randomInit done\n");
 
-    perksInit();
-    traitsInit();
-    itemsInit();
-    queueInit();
-    critterInit();
-    aiInit();
-    _inven_reset_dude();
+badwordsInit();
+DbgPrint("[gameInitWithOptions] badwordsInit done\n");
 
-    if (gameSoundInit() != 0) {
-        debugPrint("Sound initialization failed.\n");
-    }
+skillsInit();
+DbgPrint("[gameInitWithOptions] skillsInit done\n");
 
-    debugPrint(">gsound_init\t");
+statsInit();
+DbgPrint("[gameInitWithOptions] statsInit done\n");
 
-    movieInit();
-    debugPrint(">initMovie\t\t");
+if (partyMembersInit() != 0) {
+    DbgPrint("[gameInitWithOptions] partyMembersInit FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] partyMembersInit done\n");
 
-    if (gameMoviesInit() != 0) {
-        debugPrint("Failed on gmovie_init\n");
-        return -1;
-    }
+perksInit();
+DbgPrint("[gameInitWithOptions] perksInit done\n");
 
-    debugPrint(">gmovie_init\t");
+traitsInit();
+DbgPrint("[gameInitWithOptions] traitsInit done\n");
 
-    if (movieEffectsInit() != 0) {
-        debugPrint("Failed on moviefx_init\n");
-        return -1;
-    }
+itemsInit();
+DbgPrint("[gameInitWithOptions] itemsInit done\n");
 
-    debugPrint(">moviefx_init\t");
+queueInit();
+DbgPrint("[gameInitWithOptions] queueInit done\n");
 
-    if (isoInit() != 0) {
-        debugPrint("Failed on iso_init\n");
-        return -1;
-    }
+critterInit();
+DbgPrint("[gameInitWithOptions] critterInit done\n");
 
-    debugPrint(">iso_init\t");
+aiInit();
+DbgPrint("[gameInitWithOptions] aiInit done\n");
 
-    if (gameMouseInit() != 0) {
-        debugPrint("Failed on gmouse_init\n");
-        return -1;
-    }
+_inven_reset_dude();
+DbgPrint("[gameInitWithOptions] _inven_reset_dude done\n");
 
-    debugPrint(">gmouse_init\t");
+//if (gameSoundInit() != 0) {
+//    DbgPrint("[gameInitWithOptions] gameSoundInit FAILED\n");
+//}
+//DbgPrint("[gameInitWithOptions] gameSoundInit done (or skipped failure)\n");
 
-    if (protoInit() != 0) {
-        debugPrint("Failed on proto_init\n");
-        return -1;
-    }
+movieInit();
+DbgPrint("[gameInitWithOptions] movieInit done\n");
 
-    debugPrint(">proto_init\t");
+if (gameMoviesInit() != 0) {
+    DbgPrint("[gameInitWithOptions] gameMoviesInit FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] gameMoviesInit done\n");
 
-    animationInit();
-    debugPrint(">anim_init\t");
+if (movieEffectsInit() != 0) {
+    DbgPrint("[gameInitWithOptions] movieEffectsInit FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] movieEffectsInit done\n");
 
-    if (scriptsInit() != 0) {
-        debugPrint("Failed on scr_init\n");
-        return -1;
-    }
+if (isoInit() != 0) {
+    DbgPrint("[gameInitWithOptions] isoInit FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] isoInit done\n");
 
-    debugPrint(">scr_init\t");
+if (gameMouseInit() != 0) {
+    DbgPrint("[gameInitWithOptions] gameMouseInit FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] gameMouseInit done\n");
 
-    if (gameLoadGlobalVars() != 0) {
-        debugPrint("Failed on game_load_info\n");
-        return -1;
-    }
+if (protoInit() != 0) {
+    DbgPrint("[gameInitWithOptions] protoInit FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] protoInit done\n");
 
-    debugPrint(">game_load_info\t");
+animationInit();
+DbgPrint("[gameInitWithOptions] animationInit done\n");
 
-    if (_scr_game_init() != 0) {
-        debugPrint("Failed on scr_game_init\n");
-        return -1;
-    }
+if (scriptsInit() != 0) {
+    DbgPrint("[gameInitWithOptions] scriptsInit FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] scriptsInit done\n");
 
-    debugPrint(">scr_game_init\t");
+if (gameLoadGlobalVars() != 0) {
+    DbgPrint("[gameInitWithOptions] gameLoadGlobalVars FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] gameLoadGlobalVars done\n");
 
-    if (wmWorldMap_init() != 0) {
-        debugPrint("Failed on wmWorldMap_init\n");
-        return -1;
-    }
+if (_scr_game_init() != 0) {
+    DbgPrint("[gameInitWithOptions] _scr_game_init FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] _scr_game_init done\n");
 
-    debugPrint(">wmWorldMap_init\t");
+if (wmWorldMap_init() != 0) {
+    DbgPrint("[gameInitWithOptions] wmWorldMap_init FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] wmWorldMap_init done\n");
 
-    characterEditorInit();
-    debugPrint(">CharEditInit\t");
+characterEditorInit();
+DbgPrint("[gameInitWithOptions] characterEditorInit done\n");
 
-    pipboyInit();
-    debugPrint(">pip_init\t\t");
+pipboyInit();
+DbgPrint("[gameInitWithOptions] pipboyInit done\n");
 
-    _InitLoadSave();
-    lsgInit();
-    debugPrint(">InitLoadSave\t");
+_InitLoadSave();
+DbgPrint("[gameInitWithOptions] _InitLoadSave done\n");
 
-    if (gameDialogInit() != 0) {
-        debugPrint("Failed on gdialog_init\n");
-        return -1;
-    }
+lsgInit();
+DbgPrint("[gameInitWithOptions] lsgInit done\n");
 
-    debugPrint(">gdialog_init\t");
+if (gameDialogInit() != 0) {
+    DbgPrint("[gameInitWithOptions] gameDialogInit FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] gameDialogInit done\n");
 
-    if (combatInit() != 0) {
-        debugPrint("Failed on combat_init\n");
-        return -1;
-    }
+if (combatInit() != 0) {
+    DbgPrint("[gameInitWithOptions] combatInit FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] combatInit done\n");
 
-    debugPrint(">combat_init\t");
+if (automapInit() != 0) {
+    DbgPrint("[gameInitWithOptions] automapInit FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] automapInit done\n");
 
-    if (automapInit() != 0) {
-        debugPrint("Failed on automap_init\n");
-        return -1;
-    }
+if (!messageListInit(&gMiscMessageList)) {
+    DbgPrint("[gameInitWithOptions] messageListInit FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] messageListInit done\n");
 
-    debugPrint(">automap_init\t");
+snprintf(path, sizeof(path), "%s%s", asc_5186C8, "misc.msg");
+if (!messageListLoad(&gMiscMessageList, path)) {
+    DbgPrint("[gameInitWithOptions] messageListLoad FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] messageListLoad done\n");
 
-    if (!messageListInit(&gMiscMessageList)) {
-        debugPrint("Failed on message_init\n");
-        return -1;
-    }
+if (scriptsDisable() != 0) {
+    DbgPrint("[gameInitWithOptions] scriptsDisable FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] scriptsDisable done\n");
 
-    debugPrint(">message_init\t");
+if (_init_options_menu() != 0) {
+    DbgPrint("[gameInitWithOptions] _init_options_menu FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] _init_options_menu done\n");
 
-    snprintf(path, sizeof(path), "%s%s", asc_5186C8, "misc.msg");
+if (endgameDeathEndingInit() != 0) {
+    DbgPrint("[gameInitWithOptions] endgameDeathEndingInit FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] endgameDeathEndingInit done\n");
 
-    if (!messageListLoad(&gMiscMessageList, path)) {
-        debugPrint("Failed on message_load\n");
-        return -1;
-    }
+premadeCharactersInit();
+DbgPrint("[gameInitWithOptions] premadeCharactersInit done\n");
 
-    debugPrint(">message_load\t");
+if (!sfall_gl_vars_init()) {
+    DbgPrint("[gameInitWithOptions] sfall_gl_vars_init FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] sfall_gl_vars_init done\n");
 
-    if (scriptsDisable() != 0) {
-        debugPrint("Failed on scr_disable\n");
-        return -1;
-    }
+if (!sfallListsInit()) {
+    DbgPrint("[gameInitWithOptions] sfallListsInit FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] sfallListsInit done\n");
 
-    debugPrint(">scr_disable\t");
+if (!sfallArraysInit()) {
+    DbgPrint("[gameInitWithOptions] sfallArraysInit FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] sfallArraysInit done\n");
 
-    if (_init_options_menu() != 0) {
-        debugPrint("Failed on init_options_menu\n");
-        return -1;
-    }
+if (!sfall_gl_scr_init()) {
+    DbgPrint("[gameInitWithOptions] sfall_gl_scr_init FAILED\n");
+    return -1;
+}
+DbgPrint("[gameInitWithOptions] sfall_gl_scr_init done\n");
 
-    debugPrint(">init_options_menu\n");
+char* customConfigBasePath;
+configGetString(&gSfallConfig, SFALL_CONFIG_SCRIPTS_KEY, SFALL_CONFIG_INI_CONFIG_FOLDER, &customConfigBasePath);
+sfall_ini_set_base_path(customConfigBasePath);
+DbgPrint("[gameInitWithOptions] customConfigBasePath set to: %s\n", customConfigBasePath);
 
-    if (endgameDeathEndingInit() != 0) {
-        debugPrint("Failed on endgameDeathEndingInit");
-        return -1;
-    }
+messageListRepositorySetStandardMessageList(STANDARD_MESSAGE_LIST_MISC, &gMiscMessageList);
+DbgPrint("[gameInitWithOptions] messageListRepositorySetStandardMessageList done\n");
 
-    debugPrint(">endgameDeathEndingInit\n");
-
-    // SFALL
-    premadeCharactersInit();
-
-    if (!sfall_gl_vars_init()) {
-        debugPrint("Failed on sfall_gl_vars_init");
-        return -1;
-    }
-
-    if (!sfallListsInit()) {
-        debugPrint("Failed on sfallListsInit");
-        return -1;
-    }
-
-    if (!sfallArraysInit()) {
-        debugPrint("Failed on sfallArraysInit");
-        return -1;
-    }
-
-    if (!sfall_gl_scr_init()) {
-        debugPrint("Failed on sfall_gl_scr_init");
-        return -1;
-    }
-
-    char* customConfigBasePath;
-    configGetString(&gSfallConfig, SFALL_CONFIG_SCRIPTS_KEY, SFALL_CONFIG_INI_CONFIG_FOLDER, &customConfigBasePath);
-    sfall_ini_set_base_path(customConfigBasePath);
-
-    messageListRepositorySetStandardMessageList(STANDARD_MESSAGE_LIST_MISC, &gMiscMessageList);
+DbgPrint("[gameInitWithOptions] Initialization complete!\n");
 
     return 0;
 }
+
 
 // 0x442B84
 void gameReset()

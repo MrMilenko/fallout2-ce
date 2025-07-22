@@ -1204,61 +1204,119 @@ int doPreferences(bool animated)
 {
     ScopedGameMode gm(GameMode::kPreferences);
 
+#ifdef NXDK
+    DbgPrint("[doPreferences] Entered. animated = %d\n", animated);
+#endif
+
     if (preferencesWindowInit() == -1) {
+#ifdef NXDK
+        DbgPrint("[doPreferences] preferencesWindowInit() failed!\n");
+#endif
         debugPrint("\nPREFERENCE MENU: Error loading preference dialog data!\n");
         return -1;
     }
 
     bool cursorWasHidden = cursorIsHidden();
+#ifdef NXDK
+    DbgPrint("[doPreferences] cursorWasHidden = %d\n", cursorWasHidden);
+#endif
+
     if (cursorWasHidden) {
         mouseShowCursor();
+#ifdef NXDK
+        DbgPrint("[doPreferences] Cursor was hidden, now shown.\n");
+#endif
     }
 
     if (animated) {
+#ifdef NXDK
+        DbgPrint("[doPreferences] Loading color palette...\n");
+#endif
         colorPaletteLoad("color.pal");
+#ifdef NXDK
+        DbgPrint("[doPreferences] Calling paletteFadeTo(_cmap)\n");
+#endif
         paletteFadeTo(_cmap);
     }
 
     int rc = -1;
+#ifdef NXDK
+    DbgPrint("[doPreferences] Entering input loop...\n");
+#endif
+
     while (rc == -1) {
         sharedFpsLimiter.mark();
 
         int eventCode = inputGetInput();
+#ifdef NXDK
+        DbgPrint("[doPreferences] inputGetInput() -> %d\n", eventCode);
+#endif
 
         switch (eventCode) {
         case KEY_RETURN:
         case KEY_UPPERCASE_P:
         case KEY_LOWERCASE_P:
+#ifdef NXDK
+            DbgPrint("[doPreferences] KEY_[RETURN|P] pressed\n");
+#endif
             soundPlayFile("ib1p1xx1");
             // FALLTHROUGH
         case 504:
+#ifdef NXDK
+            DbgPrint("[doPreferences] Received code 504 or fallthrough, exiting with rc = 1\n");
+#endif
             rc = 1;
             break;
         case KEY_CTRL_Q:
         case KEY_CTRL_X:
         case KEY_F10:
+#ifdef NXDK
+            DbgPrint("[doPreferences] Quit confirmation keys pressed\n");
+#endif
             showQuitConfirmationDialog();
             break;
         case KEY_EQUAL:
         case KEY_PLUS:
+#ifdef NXDK
+            DbgPrint("[doPreferences] Brightness increase key pressed\n");
+#endif
             brightnessIncrease();
             break;
         case KEY_MINUS:
         case KEY_UNDERSCORE:
+#ifdef NXDK
+            DbgPrint("[doPreferences] Brightness decrease key pressed\n");
+#endif
             brightnessDecrease();
             break;
         case KEY_F12:
+#ifdef NXDK
+            DbgPrint("[doPreferences] Screenshot key pressed\n");
+#endif
             takeScreenshot();
             break;
         case 527:
+#ifdef NXDK
+            DbgPrint("[doPreferences] Reset to defaults (527) pressed\n");
+#endif
             preferencesSetDefaults(true);
             break;
         default:
             if (eventCode == KEY_ESCAPE || eventCode == 528 || _game_user_wants_to_quit != 0) {
+#ifdef NXDK
+                DbgPrint("[doPreferences] Exit condition met (ESC, 528, or quit flag)\n");
+#endif
                 _RestoreSettings();
                 rc = 0;
             } else if (eventCode >= 505 && eventCode <= 524) {
+#ifdef NXDK
+                DbgPrint("[doPreferences] Button event %d -> _DoThing()\n", eventCode);
+#endif
                 _DoThing(eventCode);
+            } else {
+#ifdef NXDK
+                DbgPrint("[doPreferences] Unknown input event: %d\n", eventCode);
+#endif
             }
             break;
         }
@@ -1268,17 +1326,27 @@ int doPreferences(bool animated)
     }
 
     if (animated) {
+#ifdef NXDK
+        DbgPrint("[doPreferences] Fading to black palette...\n");
+#endif
         paletteFadeTo(gPaletteBlack);
     }
 
     if (cursorWasHidden) {
         mouseHideCursor();
+#ifdef NXDK
+        DbgPrint("[doPreferences] Cursor was hidden before, now hiding again.\n");
+#endif
     }
 
     preferencesWindowFree();
+#ifdef NXDK
+    DbgPrint("[doPreferences] preferencesWindowFree() called. Returning rc = %d\n", rc);
+#endif
 
     return rc;
 }
+
 
 // 0x490E8C
 static void _DoThing(int eventCode)

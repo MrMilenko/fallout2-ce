@@ -1,17 +1,18 @@
 #include "sound.h"
 
-#include <fcntl.h>
-#include <limits.h>
-#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
 #ifdef _WIN32
+#ifndef NXDK
 #include <io.h>
+#endif
 #else
+#include <fcntl.h>
 #include <unistd.h>
 #endif
 
+#include <math.h>
 #include <algorithm>
 
 #include <SDL.h>
@@ -198,8 +199,8 @@ static long soundFileSize(int fileHandle)
     long size;
 
     pos = compat_tell(fileHandle);
-    size = lseek(fileHandle, 0, SEEK_END);
-    lseek(fileHandle, pos, SEEK_SET);
+    size = compat_lseek(fileHandle, 0, SEEK_END);
+    compat_lseek(fileHandle, pos, SEEK_SET);
 
     return size;
 }
@@ -213,13 +214,13 @@ static long soundTellData(int fileHandle)
 // 0x4AC758
 static int soundWriteData(int fileHandle, const void* buf, unsigned int size)
 {
-    return write(fileHandle, buf, size);
+    return compat_write(fileHandle, buf, size);
 }
 
 // 0x4AC760
 static int soundReadData(int fileHandle, void* buf, unsigned int size)
 {
-    return read(fileHandle, buf, size);
+    return compat_read(fileHandle, buf, size);
 }
 
 // 0x4AC768
@@ -233,19 +234,19 @@ static int soundOpenData(const char* filePath, int* sampleRate)
     flags = O_RDONLY;
 #endif
 
-    return open(filePath, flags);
+    return compat_open(filePath, flags);
 }
 
 // 0x4AC774
 static long soundSeekData(int fileHandle, long offset, int origin)
 {
-    return lseek(fileHandle, offset, origin);
+    return compat_lseek(fileHandle, offset, origin);
 }
 
 // 0x4AC77C
 static int soundCloseData(int fileHandle)
 {
-    return close(fileHandle);
+    return compat_close(fileHandle);
 }
 
 // 0x4AC78C

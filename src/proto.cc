@@ -2,7 +2,9 @@
 
 #include <stdio.h>
 #include <string.h>
-
+#ifdef NXDK
+#include "xboxkrnl/xboxkrnl.h"
+#endif
 #include "art.h"
 #include "character_editor.h"
 #include "combat.h"
@@ -195,16 +197,20 @@ void proto_make_path(char* path, int pid)
     }
 }
 
-// Append proto file name to proto_path from proto.lst.
-//
 // 0x49E758
 int _proto_list_str(int pid, char* proto_path)
 {
     if (pid == -1) {
+#ifdef NXDK
+        DbgPrint("[_proto_list_str] Invalid PID (-1).\n");
+#endif
         return -1;
     }
 
     if (proto_path == nullptr) {
+#ifdef NXDK
+        DbgPrint("[_proto_list_str] proto_path is null.\n");
+#endif
         return -1;
     }
 
@@ -220,15 +226,20 @@ int _proto_list_str(int pid, char* proto_path)
     char string[256];
     while (fileReadString(string, sizeof(string), stream)) {
         if (i == (pid & 0xFFFFFF)) {
+#ifdef NXDK
+            DbgPrint("[_proto_list_str] Found matching entry: %s\n", string);
+#endif
             break;
         }
-
         i++;
     }
 
     fileClose(stream);
 
     if (i != (pid & 0xFFFFFF)) {
+#ifdef NXDK
+        DbgPrint("[_proto_list_str] Entry %d not found in list.\n", pid & 0xFFFFFF);
+#endif
         return -1;
     }
 
@@ -237,15 +248,20 @@ int _proto_list_str(int pid, char* proto_path)
         *pch = '\0';
     }
 
-    pch = strpbrk(string, "\r\n");
+    pch = (char*)strpbrk(string, "\r\n");
     if (pch != nullptr) {
         *pch = '\0';
     }
+
+#ifdef NXDK
+    DbgPrint("[_proto_list_str] Final string: %s\n", string);
+#endif
 
     strcpy(proto_path, string);
 
     return 0;
 }
+
 
 // 0x49E984
 size_t proto_size(int type)

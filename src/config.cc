@@ -534,10 +534,47 @@ bool configGetDouble(Config* config, const char* sectionKey, const char* key, do
         return false;
     }
 
+#ifdef NXDK
+    if (stringValue == nullptr || stringValue[0] == '\0') {
+        return false;
+    }
+
+    double result = 0.0;
+    bool isNegative = false;
+    const char* p = stringValue;
+
+    while (*p == ' ' || *p == '\t') p++; // Skip whitespace
+
+    if (*p == '-') {
+        isNegative = true;
+        p++;
+    } else if (*p == '+') {
+        p++;
+    }
+
+    while (*p >= '0' && *p <= '9') {
+        result = result * 10.0 + (*p - '0');
+        p++;
+    }
+
+    if (*p == '.') {
+        p++;
+        double fraction = 0.1;
+        while (*p >= '0' && *p <= '9') {
+            result += (*p - '0') * fraction;
+            fraction *= 0.1;
+            p++;
+        }
+    }
+
+    *valuePtr = isNegative ? -result : result;
+#else
     *valuePtr = strtod(stringValue, nullptr);
+#endif
 
     return true;
 }
+
 
 // 0x42C74C
 bool configSetDouble(Config* config, const char* sectionKey, const char* key, double value)

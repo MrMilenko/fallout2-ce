@@ -1,5 +1,5 @@
 #include "game_sound.h"
-
+#include "xboxkrnl/xboxkrnl.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -185,9 +185,10 @@ static int _gsound_setup_paths();
 // 0x44FC70
 int gameSoundInit()
 {
+    DbgPrint("gameSoundInit() called\n");
     if (gGameSoundInitialized) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Trying to initialize gsound twice.\n");
+            DbgPrint("Trying to initialize gsound twice.\n");
         }
         return -1;
     }
@@ -199,7 +200,7 @@ int gameSoundInit()
     gGameSoundDebugEnabled = settings.sound.debug;
 
     if (gGameSoundDebugEnabled) {
-        debugPrint("Initializing sound system...");
+        DbgPrint("Initializing sound system...");
     }
 
     if (_gsound_get_music_path(&_sound_music_path1, GAME_CONFIG_MUSIC_PATH1_KEY) != 0) {
@@ -212,7 +213,7 @@ int gameSoundInit()
 
     if (strlen(_sound_music_path1) > 247 || strlen(_sound_music_path2) > 247) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Music paths way too long.\n");
+            DbgPrint("Music paths way too long.\n");
         }
         return -1;
     }
@@ -227,14 +228,14 @@ int gameSoundInit()
     // initialize direct sound
     if (soundInit(_detectDevices, 24, 0x8000, 0x8000, 22050) != 0) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("failed!\n");
+            DbgPrint("failed!\n");
         }
 
         return -1;
     }
 
     if (gGameSoundDebugEnabled) {
-        debugPrint("success.\n");
+        DbgPrint("success.\n");
     }
 
     audioFileInit(gameSoundIsCompressed);
@@ -242,21 +243,21 @@ int gameSoundInit()
 
     int cacheSize = settings.sound.cache_size;
     if (cacheSize >= 0x40000) {
-        debugPrint("\n!!! Config file needs adustment.  Please remove the ");
-        debugPrint("cache_size line and run fallout again.  This will reset ");
-        debugPrint("cache_size to the new default, which is expressed in K.\n");
+        DbgPrint("\n!!! Config file needs adustment.  Please remove the ");
+        DbgPrint("cache_size line and run fallout again.  This will reset ");
+        DbgPrint("cache_size to the new default, which is expressed in K.\n");
         return -1;
     }
 
     if (soundEffectsCacheInit(cacheSize << 10, _sound_sfx_path) != 0) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Unable to initialize sound effects cache.\n");
+            DbgPrint("Unable to initialize sound effects cache.\n");
         }
     }
 
     if (soundSetDefaultFileIO(gameSoundFileOpen, gameSoundFileClose, gameSoundFileRead, gameSoundFileWrite, gameSoundFileSeek, gameSoundFileTell, gameSoundFileGetSize) != 0) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Failure setting sound I/O calls.\n");
+            DbgPrint("Failure setting sound I/O calls.\n");
         }
         return -1;
     }
@@ -266,7 +267,7 @@ int gameSoundInit()
 
     // SOUNDS
     if (gGameSoundDebugEnabled) {
-        debugPrint("Sounds are ");
+        DbgPrint("Sounds are ");
     }
 
     if (settings.sound.sounds) {
@@ -274,17 +275,17 @@ int gameSoundInit()
         soundEffectsEnable();
     } else {
         if (gGameSoundDebugEnabled) {
-            debugPrint(" not ");
+            DbgPrint(" not ");
         }
     }
 
     if (gGameSoundDebugEnabled) {
-        debugPrint("on.\n");
+        DbgPrint("on.\n");
     }
 
     // MUSIC
     if (gGameSoundDebugEnabled) {
-        debugPrint("Music is ");
+        DbgPrint("Music is ");
     }
 
     if (settings.sound.music) {
@@ -292,17 +293,17 @@ int gameSoundInit()
         backgroundSoundEnable();
     } else {
         if (gGameSoundDebugEnabled) {
-            debugPrint(" not ");
+            DbgPrint(" not ");
         }
     }
 
     if (gGameSoundDebugEnabled) {
-        debugPrint("on.\n");
+        DbgPrint("on.\n");
     }
 
     // SPEEECH
     if (gGameSoundDebugEnabled) {
-        debugPrint("Speech is ");
+        DbgPrint("Speech is ");
     }
 
     if (settings.sound.speech) {
@@ -310,12 +311,12 @@ int gameSoundInit()
         speechEnable();
     } else {
         if (gGameSoundDebugEnabled) {
-            debugPrint(" not ");
+            DbgPrint(" not ");
         }
     }
 
     if (gGameSoundDebugEnabled) {
-        debugPrint("on.\n");
+        DbgPrint("on.\n");
     }
 
     gMasterVolume = settings.sound.master_volume;
@@ -344,7 +345,7 @@ void gameSoundReset()
     }
 
     if (gGameSoundDebugEnabled) {
-        debugPrint("Resetting sound system...");
+        DbgPrint("Resetting sound system...");
     }
 
     // NOTE: Uninline.
@@ -366,7 +367,7 @@ void gameSoundReset()
     _gsound_active_effect_counter = 0;
 
     if (gGameSoundDebugEnabled) {
-        debugPrint("done.\n");
+        DbgPrint("done.\n");
     }
 
     return;
@@ -434,7 +435,7 @@ int gameSoundSetMasterVolume(int volume)
 
     if (volume < VOLUME_MIN && volume > VOLUME_MAX) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Requested master volume out of range.\n");
+            DbgPrint("Requested master volume out of range.\n");
         }
         return -1;
     }
@@ -447,7 +448,7 @@ int gameSoundSetMasterVolume(int volume)
 
     if (_soundSetMasterVolume(volume) != 0) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Error setting master sound volume.\n");
+            DbgPrint("Error setting master sound volume.\n");
         }
         return -1;
     }
@@ -473,7 +474,7 @@ int soundEffectsSetVolume(int volume)
 {
     if (!gGameSoundInitialized || volume < VOLUME_MIN || volume > VOLUME_MAX) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Error setting sfx volume.\n");
+            DbgPrint("Error setting sfx volume.\n");
         }
         return -1;
     }
@@ -532,7 +533,7 @@ void backgroundSoundSetVolume(int volume)
 
     if (volume < VOLUME_MIN || volume > VOLUME_MAX) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Requested background volume out of range.\n");
+            DbgPrint("Requested background volume out of range.\n");
         }
         return;
     }
@@ -613,7 +614,7 @@ int backgroundSoundLoad(const char* fileName, int a2, int a3, int a4)
     }
 
     if (gGameSoundDebugEnabled) {
-        debugPrint("Loading background sound file %s%s...", fileName, ".acm");
+        DbgPrint("Loading background sound file %s%s...", fileName, ".acm");
     }
 
     backgroundSoundDelete();
@@ -621,7 +622,7 @@ int backgroundSoundLoad(const char* fileName, int a2, int a3, int a4)
     rc = _gsound_background_allocate(&gBackgroundSound, a3, a4);
     if (rc != 0) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("failed because sound could not be allocated.\n");
+            DbgPrint("failed because sound could not be allocated.\n");
         }
 
         gBackgroundSound = nullptr;
@@ -631,7 +632,7 @@ int backgroundSoundLoad(const char* fileName, int a2, int a3, int a4)
     rc = soundSetFileIO(gBackgroundSound, audioFileOpen, audioFileClose, audioFileRead, nullptr, audioFileSeek, gameSoundFileTellNotImplemented, audioFileGetSize);
     if (rc != 0) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("failed because file IO could not be set for compression.\n");
+            DbgPrint("failed because file IO could not be set for compression.\n");
         }
 
         soundDelete(gBackgroundSound);
@@ -643,7 +644,7 @@ int backgroundSoundLoad(const char* fileName, int a2, int a3, int a4)
     rc = soundSetChannels(gBackgroundSound, 3);
     if (rc != 0) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("failed because the channel could not be set.\n");
+            DbgPrint("failed because the channel could not be set.\n");
         }
 
         soundDelete(gBackgroundSound);
@@ -661,7 +662,7 @@ int backgroundSoundLoad(const char* fileName, int a2, int a3, int a4)
 
     if (rc != SOUND_NO_ERROR) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("'failed because the file could not be found.\n");
+            DbgPrint("'failed because the file could not be found.\n");
         }
 
         soundDelete(gBackgroundSound);
@@ -674,7 +675,7 @@ int backgroundSoundLoad(const char* fileName, int a2, int a3, int a4)
         rc = soundSetLooping(gBackgroundSound, 0xFFFF);
         if (rc != SOUND_NO_ERROR) {
             if (gGameSoundDebugEnabled) {
-                debugPrint("failed because looping could not be set.\n");
+                DbgPrint("failed because looping could not be set.\n");
             }
 
             soundDelete(gBackgroundSound);
@@ -687,7 +688,7 @@ int backgroundSoundLoad(const char* fileName, int a2, int a3, int a4)
     rc = soundSetCallback(gBackgroundSound, backgroundSoundCallback, nullptr);
     if (rc != SOUND_NO_ERROR) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("soundSetCallback failed for background sound\n");
+            DbgPrint("soundSetCallback failed for background sound\n");
         }
     }
 
@@ -695,7 +696,7 @@ int backgroundSoundLoad(const char* fileName, int a2, int a3, int a4)
         rc = soundSetReadLimit(gBackgroundSound, 0x40000);
         if (rc != SOUND_NO_ERROR) {
             if (gGameSoundDebugEnabled) {
-                debugPrint("unable to set read limit ");
+                DbgPrint("unable to set read limit ");
             }
         }
     }
@@ -703,7 +704,7 @@ int backgroundSoundLoad(const char* fileName, int a2, int a3, int a4)
     rc = soundLoad(gBackgroundSound, path);
     if (rc != SOUND_NO_ERROR) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("failed on call to soundLoad.\n");
+            DbgPrint("failed on call to soundLoad.\n");
         }
 
         soundDelete(gBackgroundSound);
@@ -716,7 +717,7 @@ int backgroundSoundLoad(const char* fileName, int a2, int a3, int a4)
         rc = soundSetReadLimit(gBackgroundSound, 0x40000);
         if (rc != 0) {
             if (gGameSoundDebugEnabled) {
-                debugPrint("unable to set read limit ");
+                DbgPrint("unable to set read limit ");
             }
         }
     }
@@ -728,7 +729,7 @@ int backgroundSoundLoad(const char* fileName, int a2, int a3, int a4)
     rc = backgroundSoundPlay();
     if (rc != 0) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("failed starting to play.\n");
+            DbgPrint("failed starting to play.\n");
         }
 
         soundDelete(gBackgroundSound);
@@ -738,7 +739,7 @@ int backgroundSoundLoad(const char* fileName, int a2, int a3, int a4)
     }
 
     if (gGameSoundDebugEnabled) {
-        debugPrint("succeeded.\n");
+        DbgPrint("succeeded.\n");
     }
 
     return 0;
@@ -772,7 +773,7 @@ void backgroundSoundRestart(int value)
     if (gBackgroundSoundFileName[0] != '\0') {
         if (backgroundSoundLoad(gBackgroundSoundFileName, value, _background_storage_requested, _background_loop_requested) != 0) {
             if (gGameSoundDebugEnabled)
-                debugPrint(" background restart failed ");
+                DbgPrint(" background restart failed ");
         }
     }
 }
@@ -833,7 +834,7 @@ void speechSetVolume(int volume)
 
     if (volume < VOLUME_MIN || volume > VOLUME_MAX) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Requested speech volume out of range.\n");
+            DbgPrint("Requested speech volume out of range.\n");
         }
         return;
     }
@@ -873,46 +874,54 @@ int speechGetDuration()
     return soundGetDuration(gSpeechSound);
 }
 
-// 0x450CA0
 int speechLoad(const char* fname, int a2, int a3, int a4)
 {
     char path[COMPAT_MAX_PATH + 1];
+    DbgPrint("[speechLoad] called with fname=%s, a2=%d, a3=%d, a4=%d\n", fname, a2, a3, a4);
 
     if (!gGameSoundInitialized) {
+        DbgPrint("[speechLoad] gGameSoundInitialized is false, aborting\n");
         return -1;
     }
 
     if (!gSpeechEnabled) {
+        DbgPrint("[speechLoad] gSpeechEnabled is false, aborting\n");
         return -1;
     }
 
     if (gGameSoundDebugEnabled) {
-        debugPrint("Loading speech sound file %s%s...", fname, ".ACM");
+        DbgPrint("[speechLoad] Loading speech sound file %s.ACM...\n", fname);
     }
 
-    // uninline
+    DbgPrint("[speechLoad] calling speechDelete()\n");
     speechDelete();
 
+    DbgPrint("[speechLoad] calling _gsound_background_allocate()\n");
     if (_gsound_background_allocate(&gSpeechSound, a3, a4)) {
+        DbgPrint("[speechLoad] _gsound_background_allocate failed\n");
         if (gGameSoundDebugEnabled) {
-            debugPrint("failed because sound could not be allocated.\n");
+            DbgPrint("failed because sound could not be allocated.\n");
         }
         gSpeechSound = nullptr;
         return -1;
     }
 
+    DbgPrint("[speechLoad] calling soundSetFileIO()\n");
     if (soundSetFileIO(gSpeechSound, audioOpen, audioClose, audioRead, nullptr, audioSeek, gameSoundFileTellNotImplemented, audioGetSize)) {
+        DbgPrint("[speechLoad] soundSetFileIO failed\n");
         if (gGameSoundDebugEnabled) {
-            debugPrint("failed because file IO could not be set for compression.\n");
+            DbgPrint("failed because file IO could not be set for compression.\n");
         }
         soundDelete(gSpeechSound);
         gSpeechSound = nullptr;
         return -1;
     }
 
+    DbgPrint("[speechLoad] calling gameSoundFindSpeechSoundPath()\n");
     if (gameSoundFindSpeechSoundPath(path, fname)) {
+        DbgPrint("[speechLoad] gameSoundFindSpeechSoundPath failed\n");
         if (gGameSoundDebugEnabled) {
-            debugPrint("failed because the file could not be found.\n");
+            DbgPrint("failed because the file could not be found.\n");
         }
         soundDelete(gSpeechSound);
         gSpeechSound = nullptr;
@@ -920,9 +929,11 @@ int speechLoad(const char* fname, int a2, int a3, int a4)
     }
 
     if (a4 == 16) {
+        DbgPrint("[speechLoad] setting looping\n");
         if (soundSetLooping(gSpeechSound, 0xFFFF)) {
+            DbgPrint("[speechLoad] soundSetLooping failed\n");
             if (gGameSoundDebugEnabled) {
-                debugPrint("failed because looping could not be set.\n");
+                DbgPrint("failed because looping could not be set.\n");
             }
             soundDelete(gSpeechSound);
             gSpeechSound = nullptr;
@@ -930,23 +941,29 @@ int speechLoad(const char* fname, int a2, int a3, int a4)
         }
     }
 
+    DbgPrint("[speechLoad] setting callback\n");
     if (soundSetCallback(gSpeechSound, speechCallback, nullptr)) {
+        DbgPrint("[speechLoad] soundSetCallback failed\n");
         if (gGameSoundDebugEnabled) {
-            debugPrint("soundSetCallback failed for speech sound\n");
+            DbgPrint("soundSetCallback failed for speech sound\n");
         }
     }
 
     if (a2 == 11) {
+        DbgPrint("[speechLoad] setting read limit (a2 == 11)\n");
         if (soundSetReadLimit(gSpeechSound, 0x40000)) {
+            DbgPrint("[speechLoad] soundSetReadLimit failed (first case)\n");
             if (gGameSoundDebugEnabled) {
-                debugPrint("unable to set read limit ");
+                DbgPrint("unable to set read limit\n");
             }
         }
     }
 
+    DbgPrint("[speechLoad] calling soundLoad with path %s\n", path);
     if (soundLoad(gSpeechSound, path)) {
+        DbgPrint("[speechLoad] soundLoad failed\n");
         if (gGameSoundDebugEnabled) {
-            debugPrint("failed on call to soundLoad.\n");
+            DbgPrint("failed on call to soundLoad.\n");
         }
         soundDelete(gSpeechSound);
         gSpeechSound = nullptr;
@@ -954,20 +971,25 @@ int speechLoad(const char* fname, int a2, int a3, int a4)
     }
 
     if (a2 != 11) {
+        DbgPrint("[speechLoad] setting read limit (a2 != 11)\n");
         if (soundSetReadLimit(gSpeechSound, 0x40000)) {
+            DbgPrint("[speechLoad] soundSetReadLimit failed (second case)\n");
             if (gGameSoundDebugEnabled) {
-                debugPrint("unable to set read limit ");
+                DbgPrint("unable to set read limit\n");
             }
         }
     }
 
     if (a2 == 10) {
+        DbgPrint("[speechLoad] skipping speechPlay due to a2 == 10\n");
         return 0;
     }
 
+    DbgPrint("[speechLoad] calling speechPlay()\n");
     if (speechPlay()) {
+        DbgPrint("[speechLoad] speechPlay failed\n");
         if (gGameSoundDebugEnabled) {
-            debugPrint("failed starting to play.\n");
+            DbgPrint("failed starting to play.\n");
         }
         soundDelete(gSpeechSound);
         gSpeechSound = nullptr;
@@ -975,11 +997,13 @@ int speechLoad(const char* fname, int a2, int a3, int a4)
     }
 
     if (gGameSoundDebugEnabled) {
-        debugPrint("succeeded.\n");
+        DbgPrint("succeeded.\n");
     }
 
+    DbgPrint("[speechLoad] success\n");
     return 0;
 }
+
 
 // 0x450F8C
 int _gsound_speech_play_preloaded()
@@ -1072,118 +1096,88 @@ int _gsound_play_sfx_file_volume(const char* a1, int a2)
 Sound* soundEffectLoad(const char* name, Object* object)
 {
     if (!gGameSoundInitialized) {
+        DbgPrint("[soundEffectLoad] Sound system not initialized.\n");
         return nullptr;
     }
 
     if (!gSoundEffectsEnabled) {
+        DbgPrint("[soundEffectLoad] Sound effects are disabled.\n");
         return nullptr;
     }
 
-    if (gGameSoundDebugEnabled) {
-        debugPrint("Loading sound file %s%s...", name, ".ACM");
-    }
+    DbgPrint("[soundEffectLoad] Loading sound effect: %s.ACM\n", name);
 
     if (_gsound_active_effect_counter >= SOUND_EFFECTS_MAX_COUNT) {
-        if (gGameSoundDebugEnabled) {
-            debugPrint("failed because there are already %d active effects.\n", _gsound_active_effect_counter);
-        }
-
+        DbgPrint("[soundEffectLoad] Too many active sound effects (%d).\n", _gsound_active_effect_counter);
         return nullptr;
     }
 
     Sound* sound = _gsound_get_sound_ready_for_effect();
     if (sound == nullptr) {
-        if (gGameSoundDebugEnabled) {
-            debugPrint("failed.\n");
-        }
-
+        DbgPrint("[soundEffectLoad] Failed to allocate sound slot.\n");
         return nullptr;
     }
 
     ++_gsound_active_effect_counter;
 
     char path[COMPAT_MAX_PATH];
-    snprintf(path, sizeof(path), "%s%s%s", _sound_sfx_path, name, ".ACM");
+    snprintf(path, sizeof(path), "%s%s.ACM", _sound_sfx_path, name);
+
+    DbgPrint("[soundEffectLoad] Attempting to load: %s\n", path);
 
     if (soundLoad(sound, path) == 0) {
-        if (gGameSoundDebugEnabled) {
-            debugPrint("succeeded.\n");
-        }
-
+        DbgPrint("[soundEffectLoad] Primary load succeeded.\n");
         return sound;
     }
 
+    // Attempt critter alias
     if (object != nullptr) {
         if (FID_TYPE(object->fid) == OBJ_TYPE_CRITTER && (name[0] == 'H' || name[0] == 'N')) {
             char v9 = name[1];
             if (v9 == 'A' || v9 == 'F' || v9 == 'M') {
                 if (v9 == 'A') {
-                    if (critterGetStat(object, STAT_GENDER)) {
-                        v9 = 'F';
-                    } else {
-                        v9 = 'M';
-                    }
-                }
-            }
-
-            snprintf(path, sizeof(path), "%sH%cXXXX%s%s", _sound_sfx_path, v9, name + 6, ".ACM");
-
-            if (gGameSoundDebugEnabled) {
-                debugPrint("tyring %s ", path + strlen(_sound_sfx_path));
-            }
-
-            if (soundLoad(sound, path) == 0) {
-                if (gGameSoundDebugEnabled) {
-                    debugPrint("succeeded (with alias).\n");
+                    v9 = critterGetStat(object, STAT_GENDER) ? 'F' : 'M';
                 }
 
-                return sound;
-            }
-
-            if (v9 == 'F') {
-                snprintf(path, sizeof(path), "%sHMXXXX%s%s", _sound_sfx_path, name + 6, ".ACM");
-
-                if (gGameSoundDebugEnabled) {
-                    debugPrint("tyring %s ", path + strlen(_sound_sfx_path));
-                }
+                snprintf(path, sizeof(path), "%sH%cXXXX%s.ACM", _sound_sfx_path, v9, name + 6);
+                DbgPrint("[soundEffectLoad] Trying gender alias: %s\n", path);
 
                 if (soundLoad(sound, path) == 0) {
-                    if (gGameSoundDebugEnabled) {
-                        debugPrint("succeeded (with male alias).\n");
-                    }
-
+                    DbgPrint("[soundEffectLoad] Gender alias succeeded.\n");
                     return sound;
+                }
+
+                if (v9 == 'F') {
+                    snprintf(path, sizeof(path), "%sHMXXXX%s.ACM", _sound_sfx_path, name + 6);
+                    DbgPrint("[soundEffectLoad] Trying male fallback alias: %s\n", path);
+
+                    if (soundLoad(sound, path) == 0) {
+                        DbgPrint("[soundEffectLoad] Male fallback alias succeeded.\n");
+                        return sound;
+                    }
                 }
             }
         }
     }
 
+    // Attempt hardcoded aliases
     if (strncmp(name, "MALIEU", 6) == 0 || strncmp(name, "MAMTN2", 6) == 0) {
-        snprintf(path, sizeof(path), "%sMAMTNT%s%s", _sound_sfx_path, name + 6, ".ACM");
-
-        if (gGameSoundDebugEnabled) {
-            debugPrint("tyring %s ", path + strlen(_sound_sfx_path));
-        }
+        snprintf(path, sizeof(path), "%sMAMTNT%s.ACM", _sound_sfx_path, name + 6);
+        DbgPrint("[soundEffectLoad] Trying hardcoded alias: %s\n", path);
 
         if (soundLoad(sound, path) == 0) {
-            if (gGameSoundDebugEnabled) {
-                debugPrint("succeeded (with alias).\n");
-            }
-
+            DbgPrint("[soundEffectLoad] Hardcoded alias succeeded.\n");
             return sound;
         }
     }
 
     --_gsound_active_effect_counter;
-
     soundDelete(sound);
-
-    if (gGameSoundDebugEnabled) {
-        debugPrint("failed.\n");
-    }
+    DbgPrint("[soundEffectLoad] All attempts failed for: %s.ACM\n", name);
 
     return nullptr;
 }
+
 
 // 0x45145C
 Sound* soundEffectLoadWithVolume(const char* name, Object* object, int volume)
@@ -1210,14 +1204,14 @@ void soundEffectDelete(Sound* sound)
 
     if (soundIsPlaying(sound)) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Trying to manually delete a sound effect after it has started playing.\n");
+            DbgPrint("Trying to manually delete a sound effect after it has started playing.\n");
         }
         return;
     }
 
     if (soundDelete(sound) != 0) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Unable to delete sound effect -- active effect counter may get out of sync.\n");
+            DbgPrint("Unable to delete sound effect -- active effect counter may get out of sync.\n");
         }
         return;
     }
@@ -1710,66 +1704,84 @@ int _gsound_background_allocate(Sound** soundPtr, int a2, int a3)
 int gameSoundFindBackgroundSoundPathWithCopy(char* dest, const char* src)
 {
     size_t len = strlen(src) + strlen(".ACM");
+
+#ifdef NXDK
+    DbgPrint("[gameSoundFindBackgroundSoundPathWithCopy] Looking for: %s\n", src);
+    DbgPrint(" - _sound_music_path1: %s\n", _sound_music_path1);
+    DbgPrint(" - _sound_music_path2: %s\n", _sound_music_path2);
+    DbgPrint(" - Combined path length check: len = %zu\n", len);
+#endif
+
     if (strlen(_sound_music_path1) + len > COMPAT_MAX_PATH || strlen(_sound_music_path2) + len > COMPAT_MAX_PATH) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Full background path too long.\n");
+            DbgPrint("[gameSoundFindBackgroundSoundPathWithCopy] Full background path too long.\n");
         }
-
         return -1;
     }
 
     if (gGameSoundDebugEnabled) {
-        debugPrint(" finding background sound ");
+        DbgPrint("[gameSoundFindBackgroundSoundPathWithCopy] Finding background sound in primary path...\n");
     }
 
     char outPath[COMPAT_MAX_PATH];
     snprintf(outPath, sizeof(outPath), "%s%s%s", _sound_music_path1, src, ".ACM");
+#ifdef NXDK
+    DbgPrint(" - Trying primary path: %s\n", outPath);
+#endif
+
     if (_gsound_file_exists_f(outPath)) {
         strncpy(dest, outPath, COMPAT_MAX_PATH);
         dest[COMPAT_MAX_PATH] = '\0';
+#ifdef NXDK
+        DbgPrint("[gameSoundFindBackgroundSoundPathWithCopy] Found file in primary path: %s\n", outPath);
+#endif
         return 0;
     }
 
     if (gGameSoundDebugEnabled) {
-        debugPrint("by copy ");
+        DbgPrint("[gameSoundFindBackgroundSoundPathWithCopy] Not found. Attempting copy from secondary path.\n");
     }
 
     gameSoundDeleteOldMusicFile();
 
     char inPath[COMPAT_MAX_PATH];
     snprintf(inPath, sizeof(inPath), "%s%s%s", _sound_music_path2, src, ".ACM");
+#ifdef NXDK
+    DbgPrint(" - Trying secondary path: %s\n", inPath);
+#endif
 
     FILE* inStream = compat_fopen(inPath, "rb");
     if (inStream == nullptr) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Unable to find music file %s to copy down.\n", src);
+            DbgPrint("[gameSoundFindBackgroundSoundPathWithCopy] Unable to find music file %s to copy down.\n", inPath);
         }
-
         return -1;
     }
 
     FILE* outStream = compat_fopen(outPath, "wb");
     if (outStream == nullptr) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Unable to open music file %s for copying to.", src);
+            DbgPrint("[gameSoundFindBackgroundSoundPathWithCopy] Unable to open music file %s for copying to.\n", outPath);
         }
 
         fclose(inStream);
-
         return -1;
     }
 
     void* buffer = internal_malloc(0x2000);
     if (buffer == nullptr) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Out of memory in gsound_background_find_with_copy.\n", src);
+            DbgPrint("[gameSoundFindBackgroundSoundPathWithCopy] Out of memory during copy operation.\n");
         }
 
         fclose(outStream);
         fclose(inStream);
-
         return -1;
     }
+
+#ifdef NXDK
+    DbgPrint("[gameSoundFindBackgroundSoundPathWithCopy] Starting copy...\n");
+#endif
 
     bool err = false;
     while (!feof(inStream)) {
@@ -1790,10 +1802,8 @@ int gameSoundFindBackgroundSoundPathWithCopy(char* dest, const char* src)
 
     if (err) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Background sound file copy failed on write -- ");
-            debugPrint("likely out of disc space.\n");
+            DbgPrint("[gameSoundFindBackgroundSoundPathWithCopy] Background sound file copy failed during write. Likely out of disk space.\n");
         }
-
         return -1;
     }
 
@@ -1802,8 +1812,13 @@ int gameSoundFindBackgroundSoundPathWithCopy(char* dest, const char* src)
     strncpy(dest, outPath, COMPAT_MAX_PATH);
     dest[COMPAT_MAX_PATH] = '\0';
 
+#ifdef NXDK
+    DbgPrint("[gameSoundFindBackgroundSoundPathWithCopy] Copy successful. Final path: %s\n", dest);
+#endif
+
     return 0;
 }
+
 
 // 0x451E2C
 int gameSoundFindBackgroundSoundPath(char* dest, const char* src)
@@ -1814,14 +1829,14 @@ int gameSoundFindBackgroundSoundPath(char* dest, const char* src)
     len = strlen(src) + strlen(".ACM");
     if (strlen(_sound_music_path1) + len > COMPAT_MAX_PATH || strlen(_sound_music_path2) + len > COMPAT_MAX_PATH) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Full background path too long.\n");
+            DbgPrint("Full background path too long.\n");
         }
 
         return -1;
     }
 
     if (gGameSoundDebugEnabled) {
-        debugPrint(" finding background sound ");
+        DbgPrint(" finding background sound ");
     }
 
     snprintf(path, sizeof(path), "%s%s%s", _sound_music_path1, src, ".ACM");
@@ -1832,7 +1847,7 @@ int gameSoundFindBackgroundSoundPath(char* dest, const char* src)
     }
 
     if (gGameSoundDebugEnabled) {
-        debugPrint("in 2nd path ");
+        DbgPrint("in 2nd path ");
     }
 
     snprintf(path, sizeof(path), "%s%s%s", _sound_music_path2, src, ".ACM");
@@ -1843,7 +1858,7 @@ int gameSoundFindBackgroundSoundPath(char* dest, const char* src)
     }
 
     if (gGameSoundDebugEnabled) {
-        debugPrint("-- find failed ");
+        DbgPrint("-- find failed ");
     }
 
     return -1;
@@ -1858,14 +1873,14 @@ int gameSoundFindSpeechSoundPath(char* dest, const char* src)
         if (gGameSoundDebugEnabled) {
             // FIXME: The message is wrong (notes background path, but here
             // we're dealing with speech path).
-            debugPrint("Full background path too long.\n");
+            DbgPrint("Full background path too long.\n");
         }
 
         return -1;
     }
 
     if (gGameSoundDebugEnabled) {
-        debugPrint(" finding speech sound ");
+        DbgPrint(" finding speech sound ");
     }
 
     snprintf(path, sizeof(path), "%s%s%s", _sound_speech_path, src, ".ACM");
@@ -1874,7 +1889,7 @@ int gameSoundFindSpeechSoundPath(char* dest, const char* src)
     int fileSize;
     if (dbGetFileSize(path, &fileSize) != 0) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("-- find failed ");
+            DbgPrint("-- find failed ");
         }
 
         return -1;
@@ -1895,7 +1910,7 @@ void gameSoundDeleteOldMusicFile()
         snprintf(path, sizeof(path), "%s%s%s", "sound\\music\\", _background_fname_copied, ".ACM");
         if (compat_remove(path)) {
             if (gGameSoundDebugEnabled) {
-                debugPrint("Deleting old music file failed.\n");
+                DbgPrint("Deleting old music file failed.\n");
             }
         }
 
@@ -1909,7 +1924,7 @@ int backgroundSoundPlay()
     int result;
 
     if (gGameSoundDebugEnabled) {
-        debugPrint(" playing ");
+        DbgPrint(" playing ");
     }
 
     if (_gsound_background_fade) {
@@ -1922,7 +1937,7 @@ int backgroundSoundPlay()
 
     if (result != 0) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Unable to play background sound.\n");
+            DbgPrint("Unable to play background sound.\n");
         }
 
         result = -1;
@@ -1935,14 +1950,14 @@ int backgroundSoundPlay()
 int speechPlay()
 {
     if (gGameSoundDebugEnabled) {
-        debugPrint(" playing ");
+        DbgPrint(" playing ");
     }
 
     soundSetVolume(gSpeechSound, (int)(gSpeechVolume * 0.69));
 
     if (soundPlay(gSpeechSound) != 0) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Unable to play speech sound.\n");
+            DbgPrint("Unable to play speech sound.\n");
         }
 
         return -1;
@@ -1975,7 +1990,7 @@ int _gsound_get_music_path(char** out_value, const char* key)
     copy = (char*)internal_malloc(len + 2);
     if (copy == nullptr) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Out of memory in gsound_get_music_path.\n");
+            DbgPrint("Out of memory in gsound_get_music_path.\n");
         }
         return -1;
     }
@@ -1988,7 +2003,7 @@ int _gsound_get_music_path(char** out_value, const char* key)
         internal_free(copy);
 
         if (gGameSoundDebugEnabled) {
-            debugPrint("config_set_string failed in gsound_music_path.\n");
+            DbgPrint("config_set_string failed in gsound_music_path.\n");
         }
 
         return -1;
@@ -1998,7 +2013,7 @@ int _gsound_get_music_path(char** out_value, const char* key)
         internal_free(copy);
 
         if (gGameSoundDebugEnabled) {
-            debugPrint("config_get_string failed in gsound_music_path.\n");
+            DbgPrint("config_get_string failed in gsound_music_path.\n");
         }
 
         return -1;
@@ -2018,11 +2033,11 @@ Sound* _gsound_get_sound_ready_for_effect()
     Sound* sound = soundAllocate(SOUND_TYPE_MEMORY | SOUND_TYPE_FIRE_AND_FORGET, SOUND_FLAG_0x02 | SOUND_16BIT);
     if (sound == nullptr) {
         if (gGameSoundDebugEnabled) {
-            debugPrint(" Can't allocate sound for effect. ");
+            DbgPrint(" Can't allocate sound for effect. ");
         }
 
         if (gGameSoundDebugEnabled) {
-            debugPrint("soundAllocate returned: %d, %s\n", 0, soundGetErrorDescription(0));
+            DbgPrint("soundAllocate returned: %d, %s\n", 0, soundGetErrorDescription(0));
         }
 
         return nullptr;
@@ -2036,11 +2051,11 @@ Sound* _gsound_get_sound_ready_for_effect()
 
     if (rc != 0) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("Can't set file IO on sound effect.\n");
+            DbgPrint("Can't set file IO on sound effect.\n");
         }
 
         if (gGameSoundDebugEnabled) {
-            debugPrint("soundSetFileIO returned: %d, %s\n", rc, soundGetErrorDescription(rc));
+            DbgPrint("soundSetFileIO returned: %d, %s\n", rc, soundGetErrorDescription(rc));
         }
 
         soundDelete(sound);
@@ -2051,11 +2066,11 @@ Sound* _gsound_get_sound_ready_for_effect()
     rc = soundSetCallback(sound, soundEffectCallback, nullptr);
     if (rc != 0) {
         if (gGameSoundDebugEnabled) {
-            debugPrint("failed because the callback could not be set.\n");
+            DbgPrint("failed because the callback could not be set.\n");
         }
 
         if (gGameSoundDebugEnabled) {
-            debugPrint("soundSetCallback returned: %d, %s\n", rc, soundGetErrorDescription(rc));
+            DbgPrint("soundSetCallback returned: %d, %s\n", rc, soundGetErrorDescription(rc));
         }
 
         soundDelete(sound);
@@ -2140,9 +2155,9 @@ int ambientSoundEffectEventProcess(Object* a1, void* data)
             int v7 = _get_bk_time();
             if (getTicksBetween(v7, _lastTime_1) >= 5000) {
                 if (soundPlayFile(fileName) == -1) {
-                    debugPrint("\nGsound: playing ambient map sfx: %s.  FAILED", fileName);
+                    DbgPrint("\nGsound: playing ambient map sfx: %s.  FAILED", fileName);
                 } else {
-                    debugPrint("\nGsound: playing ambient map sfx: %s", fileName);
+                    DbgPrint("\nGsound: playing ambient map sfx: %s", fileName);
                 }
             }
             _lastTime_1 = v7;

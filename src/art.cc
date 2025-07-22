@@ -3,7 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#ifdef NXDK
+#include "xboxkrnl/xboxkrnl.h"
+#endif
 #include "animation.h"
 #include "debug.h"
 #include "draw.h"
@@ -127,7 +129,6 @@ static int* _anon_alias;
 // 0x56CAF0
 static int* gArtCritterFidShoudRunData;
 
-// 0x418840
 int artInit()
 {
     char path[COMPAT_MAX_PATH];
@@ -136,7 +137,7 @@ int artInit()
 
     int cacheSize = settings.system.art_cache_size;
     if (!cacheInit(&gArtCache, artCacheGetFileSizeImpl, artCacheReadDataImpl, artCacheFreeImpl, cacheSize << 20)) {
-        debugPrint("cache_init failed in art_init\n");
+        DbgPrint("cache_init failed in art_init\n");
         return -1;
     }
 
@@ -152,7 +153,7 @@ int artInit()
         snprintf(path, sizeof(path), "%s%s%s\\%s.lst", _cd_path_base, "art\\", gArtListDescriptions[objectType].name, gArtListDescriptions[objectType].name);
 
         if (artReadList(path, &(gArtListDescriptions[objectType].fileNames), &(gArtListDescriptions[objectType].fileNamesLength)) != 0) {
-            debugPrint("art_read_lst failed in art_init\n");
+            DbgPrint("art_read_lst failed in art_init\n");
             cacheFree(&gArtCache);
             return -1;
         }
@@ -161,7 +162,7 @@ int artInit()
     _anon_alias = (int*)internal_malloc(sizeof(*_anon_alias) * gArtListDescriptions[OBJ_TYPE_CRITTER].fileNamesLength);
     if (_anon_alias == nullptr) {
         gArtListDescriptions[OBJ_TYPE_CRITTER].fileNamesLength = 0;
-        debugPrint("Out of memory for anon_alias in art_init\n");
+        DbgPrint("Out of memory for anon_alias in art_init\n");
         cacheFree(&gArtCache);
         return -1;
     }
@@ -169,7 +170,7 @@ int artInit()
     gArtCritterFidShoudRunData = (int*)internal_malloc(sizeof(*gArtCritterFidShoudRunData) * gArtListDescriptions[1].fileNamesLength);
     if (gArtCritterFidShoudRunData == nullptr) {
         gArtListDescriptions[OBJ_TYPE_CRITTER].fileNamesLength = 0;
-        debugPrint("Out of memory for artCritterFidShouldRunData in art_init\n");
+        DbgPrint("Out of memory for artCritterFidShouldRunData in art_init\n");
         cacheFree(&gArtCache);
         return -1;
     }
@@ -182,7 +183,7 @@ int artInit()
 
     stream = fileOpen(path, "rt");
     if (stream == nullptr) {
-        debugPrint("Unable to open %s in art_init\n", path);
+        DbgPrint("Unable to open %s in art_init\n", path);
         cacheFree(&gArtCache);
         return -1;
     }
@@ -264,7 +265,7 @@ int artInit()
     gHeadDescriptions = (HeadDescription*)internal_malloc(sizeof(*gHeadDescriptions) * gArtListDescriptions[OBJ_TYPE_HEAD].fileNamesLength);
     if (gHeadDescriptions == nullptr) {
         gArtListDescriptions[OBJ_TYPE_HEAD].fileNamesLength = 0;
-        debugPrint("Out of memory for head_info in art_init\n");
+        DbgPrint("Out of memory for head_info in art_init\n");
         cacheFree(&gArtCache);
         return -1;
     }
@@ -273,7 +274,7 @@ int artInit()
 
     stream = fileOpen(path, "rt");
     if (stream == nullptr) {
-        debugPrint("Unable to open %s in art_init\n", path);
+        DbgPrint("Unable to open %s in art_init\n", path);
         cacheFree(&gArtCache);
         return -1;
     }
@@ -308,7 +309,7 @@ int artInit()
 
         gHeadDescriptions[headIndex].neutralFidgetCount = atoi(sep2 + 1);
 
-        char* sep4 = strpbrk(sep3 + 1, " ,;\t\n");
+        char* sep4 = (char*)strpbrk(sep3 + 1, " ,;\t\n");
         if (sep4 != nullptr) {
             *sep4 = '\0';
         }
@@ -320,6 +321,7 @@ int artInit()
 
     return 0;
 }
+
 
 // 0x418EB8
 void artReset()
@@ -614,57 +616,94 @@ int _art_get_code(int animation, int weaponType, char* a3, char* a4)
 // 0x419428
 char* artBuildFilePath(int fid)
 {
-    int v1, v2, v3, v4, v5, type, v8, v10;
-    char v9, v11, v12;
+#ifdef NXDK
+    DbgPrint("[artBuildFilePath] Called with fid = 0x%08X\n", fid);
+#endif
 
-    v2 = fid;
+    int v2 = fid;
+    int v10 = (fid & 0x70000000) >> 28;
 
-    v10 = (fid & 0x70000000) >> 28;
-
-    v1 = artAliasFid(fid);
+    int v1 = artAliasFid(fid);
     if (v1 != -1) {
+#ifdef NXDK
+        DbgPrint("[artBuildFilePath] Alias redirect from fid 0x%08X to 0x%08X\n", fid, v1);
+#endif
         v2 = v1;
     }
 
     *_art_name = '\0';
 
-    v3 = v2 & 0xFFF;
-    v4 = FID_ANIM_TYPE(v2);
-    v5 = (v2 & 0xF000) >> 12;
-    type = FID_TYPE(v2);
+    int v3 = v2 & 0xFFF;
+    int v4 = FID_ANIM_TYPE(v2);
+    int v5 = (v2 & 0xF000) >> 12;
+    int type = FID_TYPE(v2);
+
+#ifdef NXDK
+    DbgPrint("[artBuildFilePath] type=%d, frmId=%d, animType=%d, weaponCode=%d, rotationBits=%d\n", type, v3, v4, v5, v10);
+#endif
 
     if (type < OBJ_TYPE_ITEM || type >= OBJ_TYPE_COUNT) {
+#ifdef NXDK
+        DbgPrint("[artBuildFilePath] Invalid type: %d\n", type);
+#endif
         return nullptr;
     }
 
     if (v3 >= gArtListDescriptions[type].fileNamesLength) {
+#ifdef NXDK
+        DbgPrint("[artBuildFilePath] frmId out of bounds: %d >= %d\n", v3, gArtListDescriptions[type].fileNamesLength);
+#endif
         return nullptr;
     }
 
-    v8 = v3 * 13;
+    int v8 = v3 * 13;
 
-    if (type == 1) {
+    if (type == OBJ_TYPE_CRITTER) {
+        char v11, v12;
         if (_art_get_code(v4, v5, &v11, &v12) == -1) {
+#ifdef NXDK
+            DbgPrint("[artBuildFilePath] _art_get_code failed for animType=%d, weaponCode=%d\n", v4, v5);
+#endif
             return nullptr;
         }
+
         if (v10) {
-            snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s%c%c.fr%c", _cd_path_base, "art\\", gArtListDescriptions[1].name, gArtListDescriptions[1].fileNames + v8, v11, v12, v10 + 47);
+            snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s%c%c.fr%c",
+                _cd_path_base, "art\\", gArtListDescriptions[1].name,
+                gArtListDescriptions[1].fileNames + v8,
+                v11, v12, v10 + 47);
         } else {
-            snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s%c%c.frm", _cd_path_base, "art\\", gArtListDescriptions[1].name, gArtListDescriptions[1].fileNames + v8, v11, v12);
+            snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s%c%c.frm",
+                _cd_path_base, "art\\", gArtListDescriptions[1].name,
+                gArtListDescriptions[1].fileNames + v8,
+                v11, v12);
         }
-    } else if (type == 8) {
-        v9 = _head2[v4];
+    } else if (type == OBJ_TYPE_HEAD) {
+        char v9 = _head2[v4];
         if (v9 == 'f') {
-            snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s%c%c%d.frm", _cd_path_base, "art\\", gArtListDescriptions[8].name, gArtListDescriptions[8].fileNames + v8, _head1[v4], 102, v5);
+            snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s%c%c%d.frm",
+                _cd_path_base, "art\\", gArtListDescriptions[8].name,
+                gArtListDescriptions[8].fileNames + v8,
+                _head1[v4], 102, v5);
         } else {
-            snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s%c%c.frm", _cd_path_base, "art\\", gArtListDescriptions[8].name, gArtListDescriptions[8].fileNames + v8, _head1[v4], v9);
+            snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s%c%c.frm",
+                _cd_path_base, "art\\", gArtListDescriptions[8].name,
+                gArtListDescriptions[8].fileNames + v8,
+                _head1[v4], v9);
         }
     } else {
-        snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s", _cd_path_base, "art\\", gArtListDescriptions[type].name, gArtListDescriptions[type].fileNames + v8);
+        snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s",
+            _cd_path_base, "art\\", gArtListDescriptions[type].name,
+            gArtListDescriptions[type].fileNames + v8);
     }
+
+#ifdef NXDK
+    DbgPrint("[artBuildFilePath] Final path: %s\n", _art_name);
+#endif
 
     return _art_name;
 }
+
 
 // art_read_lst
 // 0x419664
@@ -676,7 +715,9 @@ static int artReadList(const char* path, char** artListPtr, int* artListSizePtr)
     }
 
     int count = 0;
-    char string[200];
+    char string[250];
+
+    // First pass: count valid lines
     while (fileReadString(string, sizeof(string), stream)) {
         count++;
     }
@@ -693,7 +734,7 @@ static int artReadList(const char* path, char** artListPtr, int* artListSizePtr)
     }
 
     while (fileReadString(string, sizeof(string), stream)) {
-        char* brk = strpbrk(string, " ,;\r\t\n");
+        char* brk = (char*)strpbrk(string, " ,;\r\t\n");
         if (brk != nullptr) {
             *brk = '\0';
         }
@@ -708,6 +749,8 @@ static int artReadList(const char* path, char** artListPtr, int* artListSizePtr)
 
     return 0;
 }
+
+
 
 // 0x419760
 int artGetFramesPerSecond(Art* art)
@@ -853,18 +896,38 @@ ArtFrame* artGetFrame(Art* art, int frame, int rotation)
 // 0x4198C8
 bool artExists(int fid)
 {
+#ifdef NXDK
+    DbgPrint("[artExists] Called with fid = 0x%08X\n", fid);
+#endif
+
     bool result = false;
 
     char* filePath = artBuildFilePath(fid);
+#ifdef NXDK
+    DbgPrint("[artExists] artBuildFilePath returned: %s\n", filePath ? filePath : "(null)");
+#endif
+
     if (filePath != nullptr) {
         int fileSize;
         if (dbGetFileSize(filePath, &fileSize) != -1) {
             result = true;
+#ifdef NXDK
+            DbgPrint("[artExists] File exists. Size = %d bytes\n", fileSize);
+#endif
+        } else {
+#ifdef NXDK
+            DbgPrint("[artExists] dbGetFileSize failed for: %s\n", filePath);
+#endif
         }
     }
 
+#ifdef NXDK
+    DbgPrint("[artExists] Returning %s\n", result ? "true" : "false");
+#endif
+
     return result;
 }
+
 
 // NOTE: Exactly the same implementation as `artExists`.
 //
@@ -1008,27 +1071,62 @@ static void artCacheFreeImpl(void* ptr)
 
 static int buildFidInternal(unsigned short frmId, unsigned char weaponCode, unsigned char animType, unsigned char objectType, unsigned char rotation)
 {
-    return ((rotation << 28) & 0x70000000) | (objectType << 24) | ((animType << 16) & 0xFF0000) | ((weaponCode << 12) & 0xF000) | (frmId & 0xFFF);
+#ifdef NXDK
+    DbgPrint("[buildFidInternal] frmId=0x%X, weaponCode=0x%X, animType=0x%X, objectType=0x%X, rotation=0x%X\n",
+             frmId, weaponCode, animType, objectType, rotation);
+#endif
+
+    int fid = ((rotation << 28) & 0x70000000)
+            | (objectType << 24)
+            | ((animType << 16) & 0x00FF0000)
+            | ((weaponCode << 12) & 0x0000F000)
+            | (frmId & 0x00000FFF);
+
+#ifdef NXDK
+    DbgPrint("[buildFidInternal] Final FID = 0x%08X\n", fid);
+#endif
+
+    return fid;
 }
+
 
 // 0x419C88
 int buildFid(int objectType, int frmId, int animType, int weaponCode, int rotation)
 {
-    // Always use rotation 0 (NE) for non-critters, for certain critter animations.
-    // For other critter animations, check if art for the given rotation exists, if not try rotation 1 (E) and if that also doesn't exist, then default to 0 (NE).
+#ifdef NXDK
+    DbgPrint("[buildFid] Called with: objectType=%d, frmId=%d, animType=%d, weaponCode=%d, rotation=%d\n",
+             objectType, frmId, animType, weaponCode, rotation);
+#endif
+
     if (objectType != OBJ_TYPE_CRITTER
         || animType == ANIM_FIRE_DANCE
         || animType < ANIM_FALL_BACK
         || animType > ANIM_FALL_FRONT_BLOOD) {
         rotation = ROTATION_NE;
+#ifdef NXDK
+        DbgPrint("[buildFid] Forced rotation to ROTATION_NE (0) due to objectType or animType rules\n");
+#endif
     } else if (!artExists(buildFidInternal(frmId, weaponCode, animType, OBJ_TYPE_CRITTER, rotation))) {
+#ifdef NXDK
+        DbgPrint("[buildFid] Original rotation art doesn't exist. Trying fallback logic.\n");
+#endif
         rotation = rotation != ROTATION_E
                 && artExists(buildFidInternal(frmId, weaponCode, animType, OBJ_TYPE_CRITTER, ROTATION_E))
             ? ROTATION_E
             : ROTATION_NE;
+
+#ifdef NXDK
+        DbgPrint("[buildFid] Fallback rotation selected: %d\n", rotation);
+#endif
     }
-    return buildFidInternal(frmId, weaponCode, animType, objectType, rotation);
+
+    int finalFid = buildFidInternal(frmId, weaponCode, animType, objectType, rotation);
+#ifdef NXDK
+    DbgPrint("[buildFid] Final FID: 0x%X\n", finalFid);
+#endif
+    return finalFid;
 }
+
 
 // 0x419D60
 static int artReadFrameData(unsigned char* data, File* stream, int count, int* paddingPtr)
@@ -1112,13 +1210,27 @@ Art* artLoad(const char* path)
 // 0x419FC0
 int artRead(const char* path, unsigned char* data)
 {
+#ifdef NXDK
+    DbgPrint("[artRead] Called with path: %s\n", path);
+#endif
+
     File* stream = fileOpen(path, "rb");
     if (stream == nullptr) {
+#ifdef NXDK
+        DbgPrint("[artRead] Failed to open file: %s\n", path);
+#endif
         return -2;
     }
 
     Art* art = (Art*)data;
+
+#ifdef NXDK
+    DbgPrint("[artRead] Reading header...\n");
+#endif
     if (artReadHeader(art, stream) != 0) {
+#ifdef NXDK
+        DbgPrint("[artRead] artReadHeader failed for: %s\n", path);
+#endif
         fileClose(stream);
         return -3;
     }
@@ -1126,13 +1238,35 @@ int artRead(const char* path, unsigned char* data)
     int currentPadding = paddingForSize(sizeof(Art));
     int previousPadding = 0;
 
+#ifdef NXDK
+    DbgPrint("[artRead] Starting frame data read, currentPadding = %d\n", currentPadding);
+#endif
+
     for (int index = 0; index < ROTATION_COUNT; index++) {
         art->padding[index] = currentPadding;
+
+#ifdef NXDK
+        DbgPrint("[artRead] Rotation %d: dataOffset = %d, currentPadding = %d\n",
+                 index, art->dataOffsets[index], currentPadding);
+#endif
 
         if (index == 0 || art->dataOffsets[index - 1] != art->dataOffsets[index]) {
             art->padding[index] += previousPadding;
             currentPadding += previousPadding;
-            if (artReadFrameData(data + sizeof(Art) + art->dataOffsets[index] + art->padding[index], stream, art->frameCount, &previousPadding) != 0) {
+
+#ifdef NXDK
+            DbgPrint("[artRead] Reading frame data for rotation %d at offset %d\n",
+                     index, sizeof(Art) + art->dataOffsets[index] + art->padding[index]);
+#endif
+
+            if (artReadFrameData(
+                    data + sizeof(Art) + art->dataOffsets[index] + art->padding[index],
+                    stream,
+                    art->frameCount,
+                    &previousPadding) != 0) {
+#ifdef NXDK
+                DbgPrint("[artRead] artReadFrameData failed for rotation %d\n", index);
+#endif
                 fileClose(stream);
                 return -5;
             }
@@ -1140,8 +1274,12 @@ int artRead(const char* path, unsigned char* data)
     }
 
     fileClose(stream);
+#ifdef NXDK
+    DbgPrint("[artRead] Completed successfully for: %s\n", path);
+#endif
     return 0;
 }
+
 
 // NOTE: Unused.
 //
@@ -1251,17 +1389,29 @@ FrmImage::~FrmImage()
 
 bool FrmImage::lock(unsigned int fid)
 {
+#ifdef NXDK
+    DbgPrint("[FrmImage::lock] Called with fid = 0x%08X\n", fid);
+#endif
+
     if (isLocked()) {
+#ifdef NXDK
+        DbgPrint("[FrmImage::lock] Already locked, returning false\n");
+#endif
         return false;
     }
 
     _data = artLockFrameDataReturningSize(fid, &_key, &_width, &_height);
+#ifdef NXDK
     if (!_data) {
-        return false;
+        DbgPrint("[FrmImage::lock] artLockFrameDataReturningSize failed (null data)\n");
+    } else {
+        DbgPrint("[FrmImage::lock] Success: width = %d, height = %d\n", _width, _height);
     }
+#endif
 
-    return true;
+    return _data != nullptr;
 }
+
 
 void FrmImage::unlock()
 {
