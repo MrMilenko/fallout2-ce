@@ -63,7 +63,6 @@ char* compat_itoa(int value, char* buffer, int radix)
 
 void compat_splitpath(const char* path, char* drive, char* dir, char* fname, char* ext)
 {
-    DbgPrint("compat_splitpath: %s\n", path);
     const char* driveStart = path;
     if (path[0] == '/' && path[1] == '/') {
         path += 2;
@@ -130,7 +129,6 @@ void compat_splitpath(const char* path, char* drive, char* dir, char* fname, cha
 
 void compat_makepath(char* path, const char* drive, const char* dir, const char* fname, const char* ext)
 {
-    DbgPrint("compat_makepath: %s\n", path);
     path[0] = '\0';
 
     if (drive != NULL) {
@@ -290,27 +288,25 @@ unsigned int compat_timeGetTime()
 FILE* compat_fopen(const char* path, const char* mode)
 {
     char nativePath[COMPAT_MAX_PATH];
+    strcpy(nativePath, path);
+    compat_windows_path_to_native(nativePath);
+
 #ifdef NXDK
-    strcpy(nativePath, path);
-    compat_windows_path_to_native(nativePath);
-    // if (mode && (mode[0] == 'w' || mode[0] == 'a')) {
-    //     DbgPrint("compat_fopen: creating/writing file: %s (mode: %s)\n", nativePath, mode);
-    // } else {
-    //     DbgPrint("compat_fopen: opening file: %s (mode: %s)\n", nativePath, mode);
-    // }
-    if (strcmp(mode, "rt") == 0) {
-        // NXDK seemingly doesn't support "rt" mode, so we use "rb" instead
-        return fopen(nativePath, "rb");
-    } else {
-        return fopen(nativePath, mode);
+    // Remove 't' from mode string (NXDK fopen doesn't recognize it)
+    char nxdkMode[4] = {0}; // max mode string length is 3 + null
+    int i = 0;
+    for (const char* m = mode; *m && i < 3; ++m) {
+        if (*m != 't') {
+            nxdkMode[i++] = *m;
+        }
     }
+    return fopen(nativePath, nxdkMode);
 #else
-    strcpy(nativePath, path);
-    compat_windows_path_to_native(nativePath);
     compat_resolve_path(nativePath);
     return fopen(nativePath, mode);
 #endif
 }
+
 
 /*
 gzFile compat_gzopen(const char* path, const char* mode)

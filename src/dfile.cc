@@ -1,7 +1,4 @@
 #include "dfile.h"
-#ifdef NXDK
-#include "xboxkrnl/xboxkrnl.h"
-#endif
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,6 +41,19 @@ static DFile* dfileOpenInternal(DBase* dbase, const char* filename, const char* 
 static int dfileReadCharInternal(DFile* stream);
 static bool dfileReadCompressed(DFile* stream, void* ptr, size_t size);
 static void dfileUngetCompressed(DFile* stream, int ch);
+
+// NXDK - No idea why these needed to be made, but they work as intended. We have zlib though, so wtf.
+static voidpf zlib_alloc(voidpf opaque, uInt items, uInt size)
+{
+    (void)opaque;
+    return malloc(items * size);
+}
+
+static void zlib_free(voidpf opaque, voidpf address)
+{
+    (void)opaque;
+    free(address);
+}
 
 // Reads .DAT file contents.
 //
@@ -355,16 +365,10 @@ int dfileReadChar(DFile* stream)
 char* dfileReadString(char* string, int size, DFile* stream)
 {
     if (!string || size <= 0 || !stream) {
-#ifdef NXDK
-        DbgPrint(" - Invalid parameters\n");
-#endif
         return nullptr;
     }
 
     if ((stream->flags & (DFILE_EOF | DFILE_ERROR)) != 0) {
-#ifdef NXDK
-        DbgPrint(" - EOF or ERROR flag set\n");
-#endif
         return nullptr;
     }
 
@@ -389,9 +393,6 @@ char* dfileReadString(char* string, int size, DFile* stream)
     }
 
     if (pch == string) {
-#ifdef NXDK
-        DbgPrint(" - No characters read\n");
-#endif
         return nullptr;
     }
 
@@ -399,9 +400,6 @@ char* dfileReadString(char* string, int size, DFile* stream)
 
     return string;
 }
-
-
-
 
 // [fputc].
 //
@@ -571,8 +569,8 @@ int dfileSeek(DFile* stream, long offset, int origin)
         return 1;
     }
 
-    stream->decompressionStream->zalloc = Z_NULL;
-    stream->decompressionStream->zfree = Z_NULL;
+    stream->decompressionStream->zalloc = zlib_alloc;
+    stream->decompressionStream->zfree = zlib_free;
     stream->decompressionStream->opaque = Z_NULL;
     stream->decompressionStream->next_in = stream->decompressionBuffer;
     stream->decompressionStream->avail_in = 0;
@@ -633,51 +631,21 @@ static int dbaseFindEntryByFilePath(const void* a1, const void* a2)
     return compat_stricmp(filePath, entry->path);
 }
 
-// 0x4E5D9C
-static voidpf zlib_alloc(voidpf opaque, uInt items, uInt size) {
-    (void)opaque;
-    return malloc(items * size);
-}
-
-static void zlib_free(voidpf opaque, voidpf address) {
-    (void)opaque;
-    free(address);
-}
-
 static DFile* dfileOpenInternal(DBase* dbase, const char* filePath, const char* mode, DFile* dfile)
 {
-#ifdef NXDK
-    DbgPrint("dfileOpenInternal() called\n");
-    DbgPrint(" - filePath: %s\n", filePath);
-    DbgPrint(" - mode: %s\n", mode);
-    DbgPrint(" - dfile: %p\n", dfile);
-#endif
 
     DBaseEntry* entry = (DBaseEntry*)bsearch(filePath, dbase->entries, dbase->entriesLength, sizeof(*dbase->entries), dbaseFindEntryByFilePath);
     if (entry == nullptr) {
-#ifdef NXDK
-        DbgPrint(" - bsearch failed to find entry for filePath\n");
-#endif
         goto err;
     }
 
-#ifdef NXDK
-    DbgPrint(" - Found entry. Compressed: %d, dataOffset: %u\n", entry->compressed, entry->dataOffset);
-#endif
-
     if (mode[0] != 'r') {
-#ifdef NXDK
-        DbgPrint(" - Mode is not 'r', aborting.\n");
-#endif
         goto err;
     }
 
     if (dfile == nullptr) {
         dfile = (DFile*)malloc(sizeof(*dfile));
         if (dfile == nullptr) {
-#ifdef NXDK
-            DbgPrint(" - malloc failed for dfile\n");
-#endif
             return nullptr;
         }
 
@@ -685,24 +653,14 @@ static DFile* dfileOpenInternal(DBase* dbase, const char* filePath, const char* 
         dfile->dbase = dbase;
         dfile->next = dbase->dfileHead;
         dbase->dfileHead = dfile;
-
-#ifdef NXDK
-        DbgPrint(" - Allocated and initialized new DFile at %p\n", dfile);
-#endif
     } else {
         if (dbase != dfile->dbase) {
-#ifdef NXDK
-            DbgPrint(" - dfile's dbase doesn't match provided dbase\n");
-#endif
             goto err;
         }
 
         if (dfile->stream != nullptr) {
             fclose(dfile->stream);
             dfile->stream = nullptr;
-#ifdef NXDK
-            DbgPrint(" - Closed previous stream in reused DFile\n");
-#endif
         }
 
         dfile->compressedBytesRead = 0;
@@ -712,54 +670,27 @@ static DFile* dfileOpenInternal(DBase* dbase, const char* filePath, const char* 
 
     dfile->entry = entry;
 
-    // Open stream to .DAT file.
     dfile->stream = compat_fopen(dbase->path, "rb");
     if (dfile->stream == nullptr) {
-#ifdef NXDK
-        DbgPrint(" - Failed to open .DAT file: %s\n", dbase->path);
-#endif
         goto err;
     }
-
-#ifdef NXDK
-    DbgPrint(" - Opened .DAT file: %s\n", dbase->path);
-#endif
 
     if (fseek(dfile->stream, dbase->dataOffset + entry->dataOffset, SEEK_SET) != 0) {
-#ifdef NXDK
-        DbgPrint(" - fseek failed to entry data: offset %u\n", dbase->dataOffset + entry->dataOffset);
-#endif
         goto err;
     }
 
-#ifdef NXDK
-    DbgPrint(" - Stream seeked to %u\n", dbase->dataOffset + entry->dataOffset);
-#endif
-
     if (entry->compressed == 1) {
-#ifdef NXDK
-        DbgPrint(" - Entry is compressed\n");
-#endif
+
         if (dfile->decompressionStream == nullptr) {
             dfile->decompressionStream = (z_streamp)malloc(sizeof(*dfile->decompressionStream));
             if (dfile->decompressionStream == nullptr) {
-#ifdef NXDK
-                DbgPrint(" - Failed to allocate decompressionStream\n");
-#endif
                 goto err;
             }
 
             dfile->decompressionBuffer = (unsigned char*)malloc(DFILE_DECOMPRESSION_BUFFER_SIZE);
             if (dfile->decompressionBuffer == nullptr) {
-#ifdef NXDK
-                DbgPrint(" - Failed to allocate decompressionBuffer\n");
-#endif
                 goto err;
             }
-
-#ifdef NXDK
-            DbgPrint(" - Allocated decompression stream and buffer\n");
-#endif
         }
 
         dfile->decompressionStream->zalloc = zlib_alloc;
@@ -769,19 +700,9 @@ static DFile* dfileOpenInternal(DBase* dbase, const char* filePath, const char* 
         dfile->decompressionStream->avail_in = 0;
 
         if (inflateInit(dfile->decompressionStream) != Z_OK) {
-#ifdef NXDK
-            DbgPrint(" - inflateInit failed\n");
-#endif
             goto err;
         }
-
-#ifdef NXDK
-        DbgPrint(" - inflateInit succeeded\n");
-#endif
     } else {
-#ifdef NXDK
-        DbgPrint(" - Entry is not compressed, freeing any old decompression state\n");
-#endif
         if (dfile->decompressionStream != nullptr) {
             free(dfile->decompressionStream);
             dfile->decompressionStream = nullptr;
@@ -795,29 +716,17 @@ static DFile* dfileOpenInternal(DBase* dbase, const char* filePath, const char* 
 
     if (mode[1] == 't') {
         dfile->flags |= DFILE_TEXT;
-#ifdef NXDK
-        DbgPrint(" - DFILE_TEXT flag set\n");
-#endif
     }
-
-#ifdef NXDK
-    DbgPrint(" - dfileOpenInternal completed successfully\n");
-#endif
 
     return dfile;
 
 err:
-#ifdef NXDK
-    DbgPrint(" - dfileOpenInternal failed\n");
-#endif
     if (dfile != nullptr) {
         dfileClose(dfile);
     }
 
     return nullptr;
 }
-
-
 
 // 0x4E5F9C
 static int dfileReadCharInternal(DFile* stream)
@@ -925,7 +834,6 @@ static bool dfileReadCompressed(DFile* stream, void* ptr, size_t size)
 
     return true;
 }
-
 
 // NOTE: Inlined.
 //

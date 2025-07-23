@@ -3,9 +3,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef NXDK
-#include "xboxkrnl/xboxkrnl.h"
-#endif
+
 #include "platform_compat.h"
 #include "xfile.h"
 
@@ -101,30 +99,16 @@ int dbGetFileSize(const char* filePath, int* sizePtr)
 int dbGetFileContents(const char* filePath, void* ptr)
 {
     assert(filePath); // "filename", "db.c", 141
-    assert(ptr);      // "buf", "db.c", 142
-
-#ifdef NXDK
-    DbgPrint("[dbGetFileContents] filePath = %s\n", filePath);
-#endif
+    assert(ptr); // "buf", "db.c", 142
 
     File* stream = xfileOpen(filePath, "rb");
     if (stream == nullptr) {
-#ifdef NXDK
-        DbgPrint("[dbGetFileContents] xfileOpen failed for: %s\n", filePath);
-#endif
         return -1;
     }
 
     long size = xfileGetSize(stream);
-#ifdef NXDK
-    DbgPrint("[dbGetFileContents] Opened file. Size = %ld bytes\n", size);
-#endif
 
     if (gFileReadProgressHandler != nullptr) {
-#ifdef NXDK
-        DbgPrint("[dbGetFileContents] Using progress handler (chunkSize = %ld, bytesRead = %ld)\n",
-                 gFileReadProgressChunkSize, gFileReadProgressBytesRead);
-#endif
 
         unsigned char* byteBuffer = (unsigned char*)ptr;
         long remainingSize = size;
@@ -132,9 +116,6 @@ int dbGetFileContents(const char* filePath, void* ptr)
 
         while (remainingSize >= chunkSize) {
             size_t bytesRead = xfileRead(byteBuffer, sizeof(*byteBuffer), chunkSize, stream);
-#ifdef NXDK
-            DbgPrint("[dbGetFileContents] Read chunk: %zu bytes\n", bytesRead);
-#endif
             byteBuffer += bytesRead;
             remainingSize -= bytesRead;
 
@@ -147,28 +128,16 @@ int dbGetFileContents(const char* filePath, void* ptr)
         if (remainingSize != 0) {
             size_t finalRead = xfileRead(byteBuffer, sizeof(*byteBuffer), remainingSize, stream);
             gFileReadProgressBytesRead += finalRead;
-#ifdef NXDK
-            DbgPrint("[dbGetFileContents] Read final chunk: %zu bytes\n", finalRead);
-#endif
         }
     } else {
-#ifdef NXDK
-        DbgPrint("[dbGetFileContents] Reading entire file at once (no progress handler).\n");
-#endif
+
         size_t totalRead = xfileRead(ptr, 1, size, stream);
-#ifdef NXDK
-        DbgPrint("[dbGetFileContents] Total bytes read = %zu\n", totalRead);
-#endif
     }
 
     xfileClose(stream);
-#ifdef NXDK
-    DbgPrint("[dbGetFileContents] File closed.\n");
-#endif
 
     return 0;
 }
-
 
 // 0x4C5EB4
 int fileClose(File* stream)
@@ -240,8 +209,6 @@ char* fileReadString(char* string, size_t size, File* stream)
     }
     return xfileReadString(string, size, stream);
 }
-
-
 
 // 0x4C5FEC
 int fileWriteString(const char* string, File* stream)

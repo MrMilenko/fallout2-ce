@@ -15,7 +15,7 @@ void versionGetVersion(char* dest, size_t size)
             versionString = nullptr;
         }
     }
-    snprintf(dest, size, (versionString != nullptr ? versionString : "FALLOUT II %d.%02d"), VERSION_MAJOR, VERSION_MINOR);
+    snprintf(dest, size, (versionString != nullptr ? versionString : "FALLOUT II %d.%02d-Xbox-V0.1-Alpha"), VERSION_MAJOR, VERSION_MINOR);
 }
 
 } // namespace fallout

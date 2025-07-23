@@ -1004,7 +1004,6 @@ int speechLoad(const char* fname, int a2, int a3, int a4)
     return 0;
 }
 
-
 // 0x450F8C
 int _gsound_speech_play_preloaded()
 {
@@ -1095,6 +1094,10 @@ int _gsound_play_sfx_file_volume(const char* a1, int a2)
 // 0x4510DC
 Sound* soundEffectLoad(const char* name, Object* object)
 {
+#ifdef NXDK
+    DbgPrint("[soundEffectLoad] Stubbed on NXDK: skipping sound effect load for %s.ACM\n", name);
+    return nullptr;
+#else
     if (!gGameSoundInitialized) {
         DbgPrint("[soundEffectLoad] Sound system not initialized.\n");
         return nullptr;
@@ -1130,7 +1133,6 @@ Sound* soundEffectLoad(const char* name, Object* object)
         return sound;
     }
 
-    // Attempt critter alias
     if (object != nullptr) {
         if (FID_TYPE(object->fid) == OBJ_TYPE_CRITTER && (name[0] == 'H' || name[0] == 'N')) {
             char v9 = name[1];
@@ -1160,7 +1162,6 @@ Sound* soundEffectLoad(const char* name, Object* object)
         }
     }
 
-    // Attempt hardcoded aliases
     if (strncmp(name, "MALIEU", 6) == 0 || strncmp(name, "MAMTN2", 6) == 0) {
         snprintf(path, sizeof(path), "%sMAMTNT%s.ACM", _sound_sfx_path, name + 6);
         DbgPrint("[soundEffectLoad] Trying hardcoded alias: %s\n", path);
@@ -1174,10 +1175,9 @@ Sound* soundEffectLoad(const char* name, Object* object)
     --_gsound_active_effect_counter;
     soundDelete(sound);
     DbgPrint("[soundEffectLoad] All attempts failed for: %s.ACM\n", name);
-
     return nullptr;
+#endif
 }
-
 
 // 0x45145C
 Sound* soundEffectLoadWithVolume(const char* name, Object* object, int volume)
@@ -1520,22 +1520,39 @@ void _gsound_lrg_butt_release(int btn, int keyCode)
 // 0x4519A8
 int soundPlayFile(const char* name)
 {
+#ifdef NXDK
+    DbgPrint("soundPlayFile: Stubbed for NXDK - requested sound: %s\n", name ? name : "nullptr");
+    return 0; // Return success so the game logic continues
+#else
     if (!gGameSoundInitialized) {
+        DbgPrint("soundPlayFile: Sound system not initialized.\n");
         return -1;
     }
 
     if (!gSoundEffectsEnabled) {
+        DbgPrint("soundPlayFile: Sound effects disabled.\n");
+        return -1;
+    }
+
+    if (name == nullptr || name[0] == '\0') {
+        DbgPrint("soundPlayFile: Invalid filename.\n");
         return -1;
     }
 
     Sound* sound = soundEffectLoad(name, nullptr);
     if (sound == nullptr) {
+        DbgPrint("soundPlayFile: Failed to load sound effect: %s\n", name);
         return -1;
     }
 
-    soundPlay(sound);
+    if (soundPlay(sound) != 0) {
+        DbgPrint("soundPlayFile: Failed to play sound: %s\n", name);
+        soundDelete(sound); // Clean up if play fails
+        return -1;
+    }
 
     return 0;
+#endif
 }
 
 // 0x451A00
@@ -1818,7 +1835,6 @@ int gameSoundFindBackgroundSoundPathWithCopy(char* dest, const char* src)
 
     return 0;
 }
-
 
 // 0x451E2C
 int gameSoundFindBackgroundSoundPath(char* dest, const char* src)

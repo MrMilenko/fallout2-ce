@@ -340,32 +340,6 @@ int main(int argc, char* argv[])
         } while (FindNextFileA(hFind, &findData));
         FindClose(hFind);
     };
-
-    // Check if E:\UDATA\Fallout2\DATA\TEXT exists
-    if (GetFileAttributesA("E:\\UDATA\\Fallout2\\DATA\\TEXT") == INVALID_FILE_ATTRIBUTES) {
-        DbgPrint("E:\\UDATA\\Fallout2\\DATA\\TEXT does not exist, creating...\n");
-
-        // Create E:\UDATA\Fallout2\DATA if needed
-        if (GetFileAttributesA("E:\\UDATA\\Fallout2\\DATA") == INVALID_FILE_ATTRIBUTES) {
-            DbgPrint("Creating directory E:\\UDATA\\Fallout2\\DATA\n");
-            BOOL dirSuccess = CreateDirectoryA("E:\\UDATA\\Fallout2\\DATA", NULL) || GetLastError() == ERROR_ALREADY_EXISTS;
-            DbgPrint("CreateDirectoryA E:\\UDATA\\Fallout2\\DATA: %s\n", dirSuccess ? "success" : "failed");
-            assert(dirSuccess);
-        }
-
-        // Create E:\UDATA\Fallout2\DATA\TEXT
-        DbgPrint("Creating directory E:\\UDATA\\Fallout2\\DATA\\TEXT\n");
-        BOOL dirSuccess = CreateDirectoryA("E:\\UDATA\\Fallout2\\DATA\\TEXT", NULL) || GetLastError() == ERROR_ALREADY_EXISTS;
-        DbgPrint("CreateDirectoryA E:\\UDATA\\Fallout2\\DATA\\TEXT: %s\n", dirSuccess ? "success" : "failed");
-        assert(dirSuccess);
-
-        // Recursively copy D:\DATA\TEXT to E:\UDATA\Fallout2\DATA\TEXT
-        DbgPrint("Recursively copying D:\\DATA\\TEXT to E:\\UDATA\\Fallout2\\DATA\\TEXT\n");
-        CopyDirectoryRecursive("D:\\DATA\\TEXT", "E:\\UDATA\\Fallout2\\DATA\\TEXT", CopyDirectoryRecursive);
-        DbgPrint("Finished copying D:\\DATA\\TEXT\n");
-    } else {
-        DbgPrint("E:\\UDATA\\Fallout2\\DATA\\TEXT already exists, skipping copy.\n");
-    }
 #endif
 
     return fallout::main(argc, argv);

@@ -245,12 +245,12 @@ int windowManagerInit(VideoSystemInitProc* videoSystemInitProc, VideoSystemExitP
     DbgPrint("[windowManagerInit] Calling _GNW_debug_init()\n");
     _GNW_debug_init();
 
-    //if (inputInit(a3) == -1) {
-//#ifdef NXDK
-//        DbgPrint("[windowManagerInit] inputInit() failed\n");
-//#endif
-//        return WINDOW_MANAGER_ERR_INITIALIZING_INPUT;
-//    }
+    if (inputInit(a3) == -1) {
+#ifdef NXDK
+        DbgPrint("[windowManagerInit] inputInit() failed\n");
+#endif
+        return WINDOW_MANAGER_ERR_INITIALIZING_INPUT;
+    }
 
     _GNW_intr_init();
 

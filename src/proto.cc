@@ -1344,8 +1344,6 @@ int protoGetDataMember(int pid, int member, ProtoDataMemberValue* value)
     return PROTO_DATA_MEMBER_TYPE_INT;
 }
 
-// proto_init
-// 0x4A0390
 int protoInit()
 {
     size_t len;
@@ -1353,18 +1351,22 @@ int protoInit()
     char path[COMPAT_MAX_PATH];
     int i;
 
-    snprintf(path, sizeof(path), "%s\\proto", settings.system.master_patches_path.c_str());
-    len = strlen(path);
+    DbgPrint("protoInit: start\n");
 
+    snprintf(path, sizeof(path), "%s\\proto", settings.system.master_patches_path.c_str());
+    DbgPrint("protoInit: mkdir %s\n", path);
+    len = strlen(path);
     compat_mkdir(path);
 
     strcpy(path + len, "\\critters");
+    DbgPrint("protoInit: mkdir %s\n", path);
     compat_mkdir(path);
 
     strcpy(path + len, "\\items");
+    DbgPrint("protoInit: mkdir %s\n", path);
     compat_mkdir(path);
 
-    // TODO: Get rid of cast.
+    DbgPrint("protoInit: init gDudeProto\n");
     proto_critter_init((Proto*)&gDudeProto, 0x1000000);
 
     gDudeProto.pid = 0x1000000;
@@ -1374,109 +1376,113 @@ int protoInit()
     gDude->sid = 1;
 
     for (i = 0; i < 6; i++) {
+        DbgPrint("protoInit: clearing proto list %d\n", i);
         _proto_remove_list(i);
     }
 
+    DbgPrint("protoInit: loading headers\n");
     _proto_header_load();
 
     _protos_been_initialized = 1;
 
+    DbgPrint("protoInit: loading dude GCD\n");
     _proto_dude_init("premade\\player.gcd");
 
     for (i = 0; i < 6; i++) {
         if (!messageListInit(&(_proto_msg_files[i]))) {
-            debugPrint("\nError: Initing proto message files!");
+            DbgPrint("protoInit: ERROR initializing messageList[%d]\n", i);
             return -1;
         }
     }
 
     for (i = 0; i < 6; i++) {
         snprintf(path, sizeof(path), "%spro_%.4s%s", asc_5186C8, artGetObjectTypeName(i), ".msg");
+        DbgPrint("protoInit: artGetObjectTypeName: loading message file %s\n", path);
 
         if (!messageListLoad(&(_proto_msg_files[i]), path)) {
-            debugPrint("\nError: Loading proto message files!");
+            DbgPrint("protoInit: messageListLoad ERROR loading proto msg file: %s\n", path);
             return -1;
         }
     }
 
     for (i = 0; i < 6; i++) {
+        DbgPrint("protoInit: setting proto message list %d\n", i);
         messageListRepositorySetProtoMessageList(i, &(_proto_msg_files[i]));
+        DbgPrint("protoInit: completed setting proto message list %d\n", i);
     }
 
     _mp_critter_stats_list = _aDrugStatSpecia;
     _critter_stats_list = _critter_stats_list_strs;
     _critter_stats_list_None = _aNone_1;
+
     for (i = 0; i < STAT_COUNT; i++) {
         _critter_stats_list_strs[i] = statGetName(i);
         if (_critter_stats_list_strs[i] == nullptr) {
-            debugPrint("\nError: Finding stat names!");
+            DbgPrint("protoInit: ERROR statGetName failed at index %d\n", i);
             return -1;
         }
     }
 
     _mp_perk_code_None = _aNone_1;
     _perk_code_strs = _mp_perk_code_strs;
+
     for (i = 0; i < PERK_COUNT; i++) {
         _mp_perk_code_strs[i] = perkGetName(i);
         if (_mp_perk_code_strs[i] == nullptr) {
-            debugPrint("\nError: Finding perk names!");
+            DbgPrint("protoInit: ERROR perkGetName failed at index %d\n", i);
             return -1;
         }
     }
 
     if (!messageListInit(&gProtoMessageList)) {
-        debugPrint("\nError: Initing main proto message file!");
+        DbgPrint("protoInit: ERROR initializing gProtoMessageList\n");
         return -1;
     }
 
     snprintf(path, sizeof(path), "%sproto.msg", asc_5186C8);
+    DbgPrint("protoInit: loading gProtoMessageList from %s\n", path);
 
     if (!messageListLoad(&gProtoMessageList, path)) {
-        debugPrint("\nError: Loading main proto message file!");
+        DbgPrint("protoInit: ERROR loading gProtoMessageList file: %s\n", path);
         return -1;
     }
 
     _proto_none_str = getmsg(&gProtoMessageList, &messageListItem, 10);
 
-    // material type names
     for (i = 0; i < MATERIAL_TYPE_COUNT; i++) {
         gMaterialTypeNames[i] = getmsg(&gProtoMessageList, &messageListItem, 100 + i);
     }
 
-    // item type names
     for (i = 0; i < ITEM_TYPE_COUNT; i++) {
         gItemTypeNames[i] = getmsg(&gProtoMessageList, &messageListItem, 150 + i);
     }
 
-    // scenery type names
     for (i = 0; i < SCENERY_TYPE_COUNT; i++) {
         gSceneryTypeNames[i] = getmsg(&gProtoMessageList, &messageListItem, 200 + i);
     }
 
-    // damage code types
     for (i = 0; i < DAMAGE_TYPE_COUNT; i++) {
         gDamageTypeNames[i] = getmsg(&gProtoMessageList, &messageListItem, 250 + i);
     }
 
-    // caliber types
     for (i = 0; i < CALIBER_TYPE_COUNT; i++) {
         gCaliberTypeNames[i] = getmsg(&gProtoMessageList, &messageListItem, 300 + i);
     }
 
-    // race types
     for (i = 0; i < RACE_TYPE_COUNT; i++) {
         gRaceTypeNames[i] = getmsg(&gProtoMessageList, &messageListItem, 350 + i);
     }
 
-    // body types
     for (i = 0; i < BODY_TYPE_COUNT; i++) {
         gBodyTypeNames[i] = getmsg(&gProtoMessageList, &messageListItem, 400 + i);
     }
 
     messageListRepositorySetStandardMessageList(STANDARD_MESSAGE_LIST_PROTO, &gProtoMessageList);
 
+    DbgPrint("protoInit: completed successfully\n");
     return 0;
 }
+
 
 // 0x4A0814
 void protoReset()
