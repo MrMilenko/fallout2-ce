@@ -615,70 +615,53 @@ int _art_get_code(int animation, int weaponType, char* a3, char* a4)
 // 0x419428
 char* artBuildFilePath(int fid)
 {
+    int v1, v2, v3, v4, v5, type, v8, v10;
+    char v9, v11, v12;
 
-    int v2 = fid;
-    int v10 = (fid & 0x70000000) >> 28;
+    v2 = fid;
 
-    int v1 = artAliasFid(fid);
+    v10 = (fid & 0x70000000) >> 28;
+
+    v1 = artAliasFid(fid);
     if (v1 != -1) {
-
         v2 = v1;
     }
 
     *_art_name = '\0';
 
-    int v3 = v2 & 0xFFF;
-    int v4 = FID_ANIM_TYPE(v2);
-    int v5 = (v2 & 0xF000) >> 12;
-    int type = FID_TYPE(v2);
+    v3 = v2 & 0xFFF;
+    v4 = FID_ANIM_TYPE(v2);
+    v5 = (v2 & 0xF000) >> 12;
+    type = FID_TYPE(v2);
 
     if (type < OBJ_TYPE_ITEM || type >= OBJ_TYPE_COUNT) {
-
         return nullptr;
     }
 
     if (v3 >= gArtListDescriptions[type].fileNamesLength) {
-
         return nullptr;
     }
 
-    int v8 = v3 * 13;
+    v8 = v3 * 13;
 
-    if (type == OBJ_TYPE_CRITTER) {
-        char v11, v12;
+    if (type == 1) {
         if (_art_get_code(v4, v5, &v11, &v12) == -1) {
-
             return nullptr;
         }
-
         if (v10) {
-            snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s%c%c.fr%c",
-                _cd_path_base, "art\\", gArtListDescriptions[1].name,
-                gArtListDescriptions[1].fileNames + v8,
-                v11, v12, v10 + 47);
+            snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s%c%c.fr%c", _cd_path_base, "art\\", gArtListDescriptions[1].name, gArtListDescriptions[1].fileNames + v8, v11, v12, v10 + 47);
         } else {
-            snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s%c%c.frm",
-                _cd_path_base, "art\\", gArtListDescriptions[1].name,
-                gArtListDescriptions[1].fileNames + v8,
-                v11, v12);
+            snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s%c%c.frm", _cd_path_base, "art\\", gArtListDescriptions[1].name, gArtListDescriptions[1].fileNames + v8, v11, v12);
         }
-    } else if (type == OBJ_TYPE_HEAD) {
-        char v9 = _head2[v4];
+    } else if (type == 8) {
+        v9 = _head2[v4];
         if (v9 == 'f') {
-            snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s%c%c%d.frm",
-                _cd_path_base, "art\\", gArtListDescriptions[8].name,
-                gArtListDescriptions[8].fileNames + v8,
-                _head1[v4], 102, v5);
+            snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s%c%c%d.frm", _cd_path_base, "art\\", gArtListDescriptions[8].name, gArtListDescriptions[8].fileNames + v8, _head1[v4], 102, v5);
         } else {
-            snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s%c%c.frm",
-                _cd_path_base, "art\\", gArtListDescriptions[8].name,
-                gArtListDescriptions[8].fileNames + v8,
-                _head1[v4], v9);
+            snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s%c%c.frm", _cd_path_base, "art\\", gArtListDescriptions[8].name, gArtListDescriptions[8].fileNames + v8, _head1[v4], v9);
         }
     } else {
-        snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s",
-            _cd_path_base, "art\\", gArtListDescriptions[type].name,
-            gArtListDescriptions[type].fileNames + v8);
+        snprintf(_art_name, sizeof(_art_name), "%s%s%s\\%s", _cd_path_base, "art\\", gArtListDescriptions[type].name, gArtListDescriptions[type].fileNames + v8);
     }
 
     return _art_name;

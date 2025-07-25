@@ -25,7 +25,7 @@ char* getcwd(char* buf, size_t size)
     if (!buf || size < 3) {
         return nullptr;
     }
-    std::strncpy(buf, "E:", size - 1);
+    std::strncpy(buf, "D:", size - 1);
     buf[size - 1] = '\0';
     return buf;
 }
@@ -251,20 +251,45 @@ int xfileReadChar(XFile* stream)
 // 0x4DF280
 char* xfileReadString(char* string, int size, XFile* stream)
 {
-
     if (!string || size <= 0 || !stream) {
+#ifdef NXDK
+        DbgPrint("[xfileReadString] Invalid parameters: string=%p, size=%d, stream=%p\n", string, size, stream);
+#endif
         return nullptr;
     }
+
+    char* result = nullptr;
 
     switch (stream->type) {
     case XFILE_TYPE_DFILE:
-        return dfileReadString(string, size, stream->dfile);
+#ifdef NXDK
+        DbgPrint("[xfileReadString] Reading from DFILE stream\n");
+#endif
+        result = dfileReadString(string, size, stream->dfile);
+        break;
+
     case XFILE_TYPE_GZFILE:
-        return nullptr;
+#ifdef NXDK
+        DbgPrint("[xfileReadString] GZFILE stream encountered (unsupported)\n");
+#endif
+        result = nullptr; // Stubbed: not used in your build
+        break;
+
     default:
-        return compat_fgets(string, size, stream->file);
+#ifdef NXDK
+        DbgPrint("[xfileReadString] Reading from standard FILE stream\n");
+#endif
+        result = compat_fgets(string, size, stream->file);
+        break;
     }
+
+#ifdef NXDK
+    DbgPrint("[xfileReadString] Result: %s\n", result ? result : "null");
+#endif
+
+    return result;
 }
+
 
 // 0x4DF320
 int xfileWriteChar(int ch, XFile* stream)
@@ -502,8 +527,7 @@ bool xbaseOpen(const char* path)
 {
     assert(path); // "path", "xfile.c", 747
 
-    // Register atexit handler so that underlying dbase (if any) can be
-    // gracefully closed.
+    // Register atexit handler so that underlying dbase (if any) can be gracefully closed.
     if (!gXbaseExitHandlerRegistered) {
         atexit(xbaseExitHandler);
         gXbaseExitHandlerRegistered = true;
@@ -554,7 +578,8 @@ bool xbaseOpen(const char* path)
 
     char workingDirectory[COMPAT_MAX_PATH];
     if (getcwd(workingDirectory, COMPAT_MAX_PATH) == nullptr) {
-        // FIXME: Leaking xbase and path.
+        free(xbase->path);
+        free(xbase);
         return false;
     }
 
@@ -566,12 +591,12 @@ bool xbaseOpen(const char* path)
     }
 
     if (xbaseMakeDirectory(path) != 0) {
-        // FIXME: Leaking xbase and path.
+        free(xbase->path);
+        free(xbase);
         return false;
     }
 
     chdir(workingDirectory);
-
     xbase->next = gXbaseHead;
     gXbaseHead = xbase;
 

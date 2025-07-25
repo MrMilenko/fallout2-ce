@@ -390,8 +390,7 @@ static int soundEffectsListCopyFileNames(char** fileNameList)
 
     for (int index = 0; index < gSoundEffectsListEntriesLength; index++) {
         SoundEffectsListEntry* entry = &(gSoundEffectsListEntries[index]);
-        entry->name = internal_strdup(*fileNameList);
-
+        entry->name = internal_strdup(*fileNameList++);
         if (entry->name == nullptr) {
             DbgPrint("[soundEffectsListCopyFileNames] Failed to duplicate name at index %d\n", index);
             soundEffectsListClear();

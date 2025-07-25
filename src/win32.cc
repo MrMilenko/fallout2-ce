@@ -17,15 +17,15 @@
 #endif
 
 #ifdef NXDK
+#include "platform_compat.h"
+#include <assert.h>
+#include <hal/debug.h>
+#include <hal/video.h>
 #include <nxdk/mount.h>
 #include <nxdk/path.h>
-#include <assert.h>
 #include <string.h>
 #include <windows.h>
 #include <xboxkrnl/xboxkrnl.h>
-#include <hal/video.h>
-#include <hal/debug.h>
-
 typedef struct {
     int width;
     int height;
@@ -34,9 +34,9 @@ typedef struct {
 } VideoOptions;
 
 namespace fallout {
-    extern SDL_Window* gSdlWindow;
-    extern SDL_Surface* gSdlSurface;
-}
+extern SDL_Window* gSdlWindow;
+extern SDL_Surface* gSdlSurface;
+} // namespace fallout
 
 #endif
 
@@ -94,8 +94,7 @@ bool SDL_Xbox_Init(VideoOptions* video_options)
         SDL_WINDOWPOS_UNDEFINED,
         video_options->width * video_options->scale,
         video_options->height * video_options->scale,
-        windowFlags
-    );
+        windowFlags);
 
     if (!gSdlWindow) {
         DbgPrint("[SDL_Xbox_Init] SDL_CreateWindow failed: %s\n", SDL_GetError());
@@ -115,8 +114,7 @@ bool SDL_Xbox_Init(VideoOptions* video_options)
         video_options->width,
         video_options->height,
         8, // 8-bit palettized
-        0, 0, 0, 0
-    );
+        0, 0, 0, 0);
 
     if (!gSdlSurface) {
         DbgPrint("[SDL_Xbox_Init] SDL_CreateRGBSurface failed: %s\n", SDL_GetError());
@@ -139,8 +137,6 @@ bool SDL_Xbox_Init(VideoOptions* video_options)
     DbgPrint("[SDL_Xbox_Init] SDL_Xbox_Init completed successfully\n");
     return true;
 }
-
-
 
 int main(int argc, char* argv[])
 {
@@ -209,8 +205,6 @@ int main(int argc, char* argv[])
     }
 #endif
 
-    
-
     atexit(SDL_Quit);
     DbgPrint("[main] SDL initialized successfully\n");
 
@@ -233,7 +227,6 @@ int main(int argc, char* argv[])
     return rc;
 }
 
-
 } // namespace fallout
 
 int main(int argc, char* argv[])
@@ -250,7 +243,7 @@ int main(int argc, char* argv[])
         nxGetCurrentXbeNtPath(targetPath);
 
         // Cut off the XBE file name by inserting a null-terminator
-        char *filenameStr;
+        char* filenameStr;
         filenameStr = strrchr(targetPath, '\\');
         assert(filenameStr != NULL);
         *(filenameStr + 1) = '\0';
@@ -283,6 +276,11 @@ int main(int argc, char* argv[])
     DbgPrint("CreateDirectoryA E:\\UDATA\\Fallout2\\data: %s\n", dirSuccess ? "success" : "failed");
     assert(dirSuccess);
 
+    DbgPrint("Creating directory E:\\UDATA\\Fallout2\\sound\n");
+    dirSuccess = CreateDirectoryA("E:\\UDATA\\Fallout2\\sound", NULL) || GetLastError() == ERROR_ALREADY_EXISTS;
+    DbgPrint("CreateDirectoryA E:\\UDATA\\Fallout2\\sound: %s\n", dirSuccess ? "success" : "failed");
+    assert(dirSuccess);
+
     // Install fallout2.cfg f2_res.ini and ddraw.ini to HDD
     if (GetFileAttributesA("E:\\UDATA\\Fallout2\\fallout2.cfg") == INVALID_FILE_ATTRIBUTES) {
         DbgPrint("Copying fallout2.cfg to E:\\UDATA\\Fallout2\\fallout2.cfg\n");
@@ -300,6 +298,12 @@ int main(int argc, char* argv[])
         DbgPrint("Copying ddraw.ini to E:\\UDATA\\Fallout2\\ddraw.ini\n");
         BOOL copySuccess = CopyFileA("D:\\ddraw.ini", "E:\\UDATA\\Fallout2\\ddraw.ini", FALSE);
         DbgPrint("CopyFileA ddraw.ini: %s\n", copySuccess ? "success" : "failed");
+        assert(copySuccess);
+    }
+    if (GetFileAttributesA("E:\\UDATA\\Fallout2\\TitleImage.xbx") == INVALID_FILE_ATTRIBUTES) {
+        DbgPrint("Copying TitleImage.xbx to E:\\UDATA\\Fallout2\\TitleImage.xbx\n");
+        BOOL copySuccess = CopyFileA("D:\\TitleImage.xbx", "E:\\UDATA\\Fallout2\\TitleImage.xbx", FALSE);
+        DbgPrint("CopyFileA TitleImage.xbx: %s\n", copySuccess ? "success" : "failed");
         assert(copySuccess);
     }
 
@@ -340,6 +344,50 @@ int main(int argc, char* argv[])
         } while (FindNextFileA(hFind, &findData));
         FindClose(hFind);
     };
+    // On Xbox, the dashboard will see both of these folders, so we make em pretty!
+
+    FILE* titleMetaFile = fopen("E:\\UDATA\\FALLOUT2\\TitleMeta.xbx", "rb");
+    if (!titleMetaFile) {
+        DbgPrint("[lsgPerformSaveGame] Creating TitleMeta.xbx\n");
+        titleMetaFile = fopen("E:\\UDATA\\FALLOUT2\\TitleMeta.xbx", "wb");
+        if (titleMetaFile) {
+            fprintf(titleMetaFile, "TitleName=Fallout 2\r\n");
+            fclose(titleMetaFile);
+        } else {
+            DbgPrint("[lsgPerformSaveGame] Failed to create TitleMeta.xbx\n");
+        }
+    } else {
+        DbgPrint("[lsgPerformSaveGame] TitleMeta.xbx already exists\n");
+        fclose(titleMetaFile);
+    }
+    FILE* savedataMetaFile = fopen("E:\\UDATA\\FALLOUT2\\data\\SaveMeta.xbx", "rb");
+    if (!savedataMetaFile) {
+        DbgPrint("[lsgPerformSaveGame] Creating SaveMeta.xbx\n");
+        savedataMetaFile = fopen("E:\\UDATA\\FALLOUT2\\data\\SaveMeta.xbx", "wb");
+        if (savedataMetaFile) {
+            fprintf(savedataMetaFile, "Name=DATA\r\n");
+            fclose(savedataMetaFile);
+        } else {
+            DbgPrint("[lsgPerformSaveGame] Failed to create SaveMeta.xbx\n");
+        }
+    } else {
+        DbgPrint("[lsgPerformSaveGame] SaveMeta.xbx already exists\n");
+        fclose(savedataMetaFile);
+    }
+    FILE* saveaudioMetaFile = fopen("E:\\UDATA\\FALLOUT2\\sound\\SaveMeta.xbx", "rb");
+    if (!saveaudioMetaFile) {
+        DbgPrint("[lsgPerformSaveGame] Creating SaveMeta.xbx\n");
+        saveaudioMetaFile = fopen("E:\\UDATA\\FALLOUT2\\sound\\SaveMeta.xbx", "wb");
+        if (saveaudioMetaFile) {
+            fprintf(saveaudioMetaFile, "Name=AUDIO\r\n");
+            fclose(saveaudioMetaFile);
+        } else {
+            DbgPrint("[lsgPerformSaveGame] Failed to create SaveMeta.xbx\n");
+        }
+    } else {
+        DbgPrint("[lsgPerformSaveGame] SaveMeta.xbx already exists\n");
+        fclose(savedataMetaFile);
+    }
 #endif
 
     return fallout::main(argc, argv);

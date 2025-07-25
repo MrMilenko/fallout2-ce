@@ -522,6 +522,80 @@ static bool configTrimString(char* string)
     return true;
 }
 
+// Converts a string to a double, similar to strtod, but without locale support.
+// This is a simplified version because it appears NXDK hates me.
+double simpleStrtod(const char* str, char** endptr)
+{
+    const char* p = str;
+    double result = 0.0;
+    bool negative = false;
+
+    // Skip whitespace
+    while (*p == ' ' || *p == '\t') {
+        p++;
+    }
+
+    // Sign
+    if (*p == '-') {
+        negative = true;
+        p++;
+    } else if (*p == '+') {
+        p++;
+    }
+
+    // Integer part
+    while (*p >= '0' && *p <= '9') {
+        result = result * 10.0 + (*p - '0');
+        p++;
+    }
+
+    // Fractional part
+    if (*p == '.') {
+        p++;
+        double frac = 0.1;
+        while (*p >= '0' && *p <= '9') {
+            result += (*p - '0') * frac;
+            frac *= 0.1;
+            p++;
+        }
+    }
+
+    // Exponent part
+    if (*p == 'e' || *p == 'E') {
+        p++;
+        bool expNegative = false;
+        if (*p == '-') {
+            expNegative = true;
+            p++;
+        } else if (*p == '+') {
+            p++;
+        }
+
+        int exponent = 0;
+        while (*p >= '0' && *p <= '9') {
+            exponent = exponent * 10 + (*p - '0');
+            p++;
+        }
+
+        double factor = 1.0;
+        for (int i = 0; i < exponent; i++) {
+            factor *= 10.0;
+        }
+
+        if (expNegative) {
+            result /= factor;
+        } else {
+            result *= factor;
+        }
+    }
+
+    if (endptr) {
+        *endptr = (char*)p;
+    }
+
+    return negative ? -result : result;
+}
+
 // 0x42C718
 bool configGetDouble(Config* config, const char* sectionKey, const char* key, double* valuePtr)
 {
@@ -535,46 +609,32 @@ bool configGetDouble(Config* config, const char* sectionKey, const char* key, do
     }
 
 #ifdef NXDK
-    if (stringValue == nullptr || stringValue[0] == '\0') {
+    if (stringValue == nullptr) {
         return false;
     }
 
-    double result = 0.0;
-    bool isNegative = false;
-    const char* p = stringValue;
+    while (*stringValue == ' ' || *stringValue == '\t')
+        stringValue++; // Skip leading whitespace
 
-    while (*p == ' ' || *p == '\t') p++; // Skip whitespace
-
-    if (*p == '-') {
-        isNegative = true;
-        p++;
-    } else if (*p == '+') {
-        p++;
+    if (*stringValue == '\0') {
+        return false;
     }
 
-    while (*p >= '0' && *p <= '9') {
-        result = result * 10.0 + (*p - '0');
-        p++;
+    char* end = nullptr;
+    double result = simpleStrtod(stringValue, &end);
+
+    // Ensure we consumed at least some digits
+    if (end == stringValue) {
+        return false;
     }
 
-    if (*p == '.') {
-        p++;
-        double fraction = 0.1;
-        while (*p >= '0' && *p <= '9') {
-            result += (*p - '0') * fraction;
-            fraction *= 0.1;
-            p++;
-        }
-    }
-
-    *valuePtr = isNegative ? -result : result;
+    *valuePtr = result;
 #else
     *valuePtr = strtod(stringValue, nullptr);
 #endif
 
     return true;
 }
-
 
 // 0x42C74C
 bool configSetDouble(Config* config, const char* sectionKey, const char* key, double value)

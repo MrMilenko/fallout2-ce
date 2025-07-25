@@ -107,10 +107,9 @@ int dbGetFileContents(const char* filePath, void* ptr)
     }
 
     long size = xfileGetSize(stream);
-
     if (gFileReadProgressHandler != nullptr) {
-
         unsigned char* byteBuffer = (unsigned char*)ptr;
+
         long remainingSize = size;
         long chunkSize = gFileReadProgressChunkSize - gFileReadProgressBytesRead;
 
@@ -126,12 +125,10 @@ int dbGetFileContents(const char* filePath, void* ptr)
         }
 
         if (remainingSize != 0) {
-            size_t finalRead = xfileRead(byteBuffer, sizeof(*byteBuffer), remainingSize, stream);
-            gFileReadProgressBytesRead += finalRead;
+            gFileReadProgressBytesRead += xfileRead(byteBuffer, sizeof(*byteBuffer), remainingSize, stream);
         }
     } else {
-
-        size_t totalRead = xfileRead(ptr, 1, size, stream);
+        xfileRead(ptr, 1, size, stream);
     }
 
     xfileClose(stream);
@@ -187,19 +184,12 @@ int fileReadChar(File* stream)
 // 0x4C5F70
 char* fileReadString(char* string, size_t size, File* stream)
 {
-
-    if (!string || size == 0 || !stream) {
-        return nullptr;
-    }
-
     if (gFileReadProgressHandler != nullptr) {
         if (xfileReadString(string, size, stream) == nullptr) {
             return nullptr;
         }
 
-        size_t len = strlen(string);
-        gFileReadProgressBytesRead += len;
-
+        gFileReadProgressBytesRead += strlen(string);
         while (gFileReadProgressBytesRead >= gFileReadProgressChunkSize) {
             gFileReadProgressHandler();
             gFileReadProgressBytesRead -= gFileReadProgressChunkSize;
@@ -207,6 +197,7 @@ char* fileReadString(char* string, size_t size, File* stream)
 
         return string;
     }
+
     return xfileReadString(string, size, stream);
 }
 

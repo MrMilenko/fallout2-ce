@@ -106,24 +106,20 @@ void colorPaletteFadeBetween(unsigned char* oldPalette, unsigned char* newPalett
         }
 
         if (gColorPaletteTransitionCallback != nullptr) {
-
             if (step % 128 == 0) {
                 gColorPaletteTransitionCallback();
             }
         }
         _setSystemPalette(palette);
         renderPresent();
-
         sharedFpsLimiter.throttle();
     }
 
     sharedFpsLimiter.mark();
-
     _setSystemPalette(newPalette);
     renderPresent();
     sharedFpsLimiter.throttle();
 }
-
 
 // 0x4C73D4
 void colorPaletteSetTransitionCallback(ColorTransitionCallback* callback)
@@ -326,9 +322,7 @@ bool colorPaletteLoad(const char* path)
     for (int index = 0; index < 256; index++) {
         unsigned char r = 0, g = 0, b = 0;
 
-        if (fileRead(&r, sizeof(r), 1, stream) != 1 ||
-            fileRead(&g, sizeof(g), 1, stream) != 1 ||
-            fileRead(&b, sizeof(b), 1, stream) != 1) {
+        if (fileRead(&r, sizeof(r), 1, stream) != 1 || fileRead(&g, sizeof(g), 1, stream) != 1 || fileRead(&b, sizeof(b), 1, stream) != 1) {
 #ifdef NXDK
             DbgPrint("[colorPaletteLoad] Failed to read RGB triplet at index %d\n", index);
 #endif
@@ -379,9 +373,7 @@ bool colorPaletteLoad(const char* path)
 #ifdef NXDK
         DbgPrint("[colorPaletteLoad] Detected NEWC palette format.\n");
 #endif
-        if (fileRead(intensityColorTable, sizeof(intensityColorTable), 1, stream) != 1 ||
-            fileRead(colorMixAddTable, sizeof(colorMixAddTable), 1, stream) != 1 ||
-            fileRead(colorMixMulTable, sizeof(colorMixMulTable), 1, stream) != 1) {
+        if (fileRead(intensityColorTable, sizeof(intensityColorTable), 1, stream) != 1 || fileRead(colorMixAddTable, sizeof(colorMixAddTable), 1, stream) != 1 || fileRead(colorMixMulTable, sizeof(colorMixMulTable), 1, stream) != 1) {
 #ifdef NXDK
             DbgPrint("[colorPaletteLoad] Failed to read one or more NEWC tables.\n");
 #endif
@@ -407,8 +399,6 @@ bool colorPaletteLoad(const char* path)
 
     return true;
 }
-
-
 
 // 0x4C7AB4
 char* _colorError()
@@ -536,47 +526,22 @@ void colorSetBrightness(double value)
 // 0x4C89CC
 bool _initColors()
 {
-#ifdef NXDK
-    DbgPrint("[_initColors] Called\n");
-#endif
-
     if (_colorsInited) {
-#ifdef NXDK
-        DbgPrint("[_initColors] Already initialized, returning true\n");
-#endif
         return true;
     }
 
     _colorsInited = true;
-#ifdef NXDK
-    DbgPrint("[_initColors] First time init, setting _colorsInited = true\n");
-#endif
 
     colorSetBrightness(1.0);
-#ifdef NXDK
-    DbgPrint("[_initColors] Called colorSetBrightness(1.0)\n");
-#endif
 
     if (!colorPaletteLoad("color.pal")) {
-#ifdef NXDK
-        DbgPrint("[_initColors] colorPaletteLoad(\"color.pal\") FAILED, returning false\n");
-#endif
         return false;
     }
 
-#ifdef NXDK
-    DbgPrint("[_initColors] colorPaletteLoad(\"color.pal\") succeeded\n");
-#endif
-
     _setSystemPalette(_cmap);
-#ifdef NXDK
-    DbgPrint("[_initColors] _setSystemPalette(_cmap) called\n");
-    DbgPrint("[_initColors] Initialization complete, returning true\n");
-#endif
 
     return true;
 }
-
 
 // 0x4C8A18
 void _colorsClose()

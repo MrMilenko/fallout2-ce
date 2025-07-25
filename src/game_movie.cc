@@ -139,13 +139,6 @@ int gameMoviesSave(File* stream)
 // 0x44E690
 int gameMoviePlay(int movie, int flags)
 {
-#ifdef NXDK
-    const char* movieFileName = gMovieFileNames[movie];
-    DbgPrint("gameMoviePlay: Stubbed for NXDK - requested movie: %s (flags: 0x%X)\n", movieFileName, flags);
-    gGameMoviesSeen[movie] = 1;
-    gGameMovieIsPlaying = false;
-    return 0;
-#else
     gGameMovieIsPlaying = true;
 
     const char* movieFileName = gMovieFileNames[movie];
@@ -353,7 +346,6 @@ int gameMoviePlay(int movie, int flags)
     DbgPrint("gmovie_play() - movie finished and cleaned up\n");
 
     return 0;
-#endif
 }
 
 // 0x44EAE4

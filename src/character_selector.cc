@@ -563,7 +563,7 @@ static bool characterSelectorWindowRefresh()
     premadeCharactersLocalizePath(path);
 
     if (_proto_dude_init(path) == -1) {
-        debugPrint("\n ** Error in dude init! **\n");
+        DbgPrint("\n ** Error in dude init! **\n");
         return false;
     }
 

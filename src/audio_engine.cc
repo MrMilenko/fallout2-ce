@@ -1,5 +1,7 @@
 #include "audio_engine.h"
-
+#ifdef NXDK
+#include "xboxkrnl/xboxkrnl.h"
+#endif
 #include <string.h>
 
 #include <mutex>
@@ -92,9 +94,12 @@ static void audioEngineMixin(void* userData, Uint8* stream, int length)
         }
     }
 }
-
 bool audioEngineInit()
 {
+    if (SDL_InitSubSystem(SDL_INIT_AUDIO) == -1) {
+        return false;
+    }
+
     SDL_AudioSpec desiredSpec;
     desiredSpec.freq = 22050;
     desiredSpec.format = AUDIO_S16;
@@ -105,6 +110,11 @@ bool audioEngineInit()
     gAudioEngineDeviceId = SDL_OpenAudioDevice(nullptr, 0, &desiredSpec, &gAudioEngineSpec, SDL_AUDIO_ALLOW_ANY_CHANGE);
     if (gAudioEngineDeviceId == -1) {
         return false;
+    }
+
+    // Safety: fallback to desiredSpec if SDL fails to populate output
+    if (gAudioEngineSpec.format == 0 || gAudioEngineSpec.channels == 0 || gAudioEngineSpec.freq == 0) {
+        gAudioEngineSpec = desiredSpec;
     }
 
     SDL_PauseAudioDevice(gAudioEngineDeviceId, 0);
@@ -133,9 +143,9 @@ void audioEngineResume()
         SDL_PauseAudioDevice(gAudioEngineDeviceId, 0);
     }
 }
-
 int audioEngineCreateSoundBuffer(unsigned int size, int bitsPerSample, int channels, int rate)
 {
+
     if (!audioEngineIsInitialized()) {
         return -1;
     }
@@ -155,7 +165,15 @@ int audioEngineCreateSoundBuffer(unsigned int size, int bitsPerSample, int chann
             soundBuffer->looping = false;
             soundBuffer->pos = 0;
             soundBuffer->data = malloc(size);
-            soundBuffer->stream = SDL_NewAudioStream(bitsPerSample == 16 ? AUDIO_S16 : AUDIO_S8, channels, rate, gAudioEngineSpec.format, gAudioEngineSpec.channels, gAudioEngineSpec.freq);
+
+            soundBuffer->stream = SDL_NewAudioStream(
+                bitsPerSample == 16 ? AUDIO_S16 : AUDIO_S8,
+                channels,
+                rate,
+                gAudioEngineSpec.format,
+                gAudioEngineSpec.channels,
+                gAudioEngineSpec.freq);
+
             return index;
         }
     }
