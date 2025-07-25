@@ -1,16 +1,81 @@
-# Xbox/NXDK Version
+# Xbox Version
 
-Some build functions borrowed from Justy's fallout1-ce Xbox port [here](https://github.com/jroc-hb/fallout1-ce-xbox)
+# Features
+- Working FMVs
+- Working Audio
+- Working save system
+- Basic joystick support.
 
-This branch is absolutely trashed, its got DbgPrint's everywhere and may not boot at all when compile.
+# TO DO
+- Quite a bit!
 
-Can be compiled using the same instructions from Justy's fallout1-ce.
+# Bugs
 
-Build may fail if I didnt fix the additional files yet (sorry wanted the code up on github)
+- There are various graphical glitches, some paths need correcting, and possibly early termination of scripts (i.e Chista is selectable in the character menu, but no information is visible.)
 
 ## Config\Install
 
-Copy f2_res.ini, fallout2.cfg, ddraw.ini, master.dat, and critter.dat to E:\Games\Fallout2\ along with the data folder.
+Copy `f2_res.ini`, `fallout2.cfg`, `ddraw.ini`, `master.dat`, `patch000.dat` and `critter.dat` to `E:\Games\Fallout2\` along with the `data` and `sound` folders.
+
+## Example fallout2.cfg
+
+```
+[debug]
+mode=environment
+output_map_data_info=0
+show_load_info=0
+show_script_messages=0
+show_tile_num=0
+
+[sound]
+cache_size=448
+device=-1
+dma=-1
+initialize=1
+irq=-1
+master_volume=22281
+music=1
+music_path1=sound\music\
+music_path2=sound\music\
+music_volume=22281
+port=-1
+sndfx_volume=22281
+sounds=1
+speech=1
+speech_volume=22281
+
+[system]
+art_cache_size=8
+color_cycling=1
+critter_dat=D:\critter.dat
+critter_patches=E:\UDATA\FALLOUT2\data
+master_dat=D:\master.dat
+master_patches=E:\UDATA\FALLOUT2\data
+cycle_speed_factor=1
+executable=game
+free_space=20480
+hashing=1
+interrupt_walk=1
+language=english
+scroll_lock=0
+splash=2
+```
+
+## Edge Cases
+
+You may need to copy a few files from the master.dat download the tool [here](https://fallout.fandom.com/wiki/Resources:DAT_Explorer_Guide).
+
+This bug appeared in two builds, but has since been working fine.
+
+Extract the following files from the master.dat
+
+`pro_crit.msg`
+`pro_item.msg`
+`pro_scen.msg`
+`pro_tile.msg`
+`pro_wall.msg`
+
+and place them in `E:\UDATA\Fallout2\data\text\english\game`
 
 # Fallout 2 Community Edition
 
