@@ -182,7 +182,7 @@ int isoInit()
 
     gIsoWindow = windowCreate(0, 0, screenGetWidth(), screenGetVisibleHeight(), 256, 10);
     if (gIsoWindow == -1) {
-        debugPrint("win_add failed in iso_init\n");
+        DbgPrint("win_add failed in iso_init\n");
         return -1;
     }
 
@@ -196,45 +196,54 @@ int isoInit()
         debugPrint("win_get_rect failed in iso_init\n");
         return -1;
     }
-
+    DbgPrint("[isoInit] artInit called\n");
     if (artInit() != 0) {
         debugPrint("art_init failed in iso_init\n");
         return -1;
     }
+    DbgPrint("[isoInit] artInit succeeded\n");
 
-    debugPrint(">art_init\t\t");
-
+    DbgPrint("[isoInit] tileInit called\n");
     if (tileInit(_square, SQUARE_GRID_WIDTH, SQUARE_GRID_HEIGHT, HEX_GRID_WIDTH, HEX_GRID_HEIGHT, gIsoWindowBuffer, screenGetWidth(), screenGetVisibleHeight(), screenGetWidth(), isoWindowRefreshRect) != 0) {
         debugPrint("tile_init failed in iso_init\n");
         return -1;
     }
+    DbgPrint("[isoInit] tileInit succeeded\n");
 
-    debugPrint(">tile_init\t\t");
-
+    DbgPrint("[isoInit] objectsInit called\n");
     if (objectsInit(gIsoWindowBuffer, screenGetWidth(), screenGetVisibleHeight(), screenGetWidth()) != 0) {
         debugPrint("obj_init failed in iso_init\n");
         return -1;
     }
+    DbgPrint("[isoInit] objectsInit succeeded\n");
 
-    debugPrint(">obj_init\t\t");
-
+    DbgPrint("[isoInit] colorCycleInit called\n");
     colorCycleInit();
-    debugPrint(">cycle_init\t\t");
+    DbgPrint("[isoInit] colorCycleInit succeeded\n");
 
+    DbgPrint("[isoInit] tileScrollBlockingEnable called\n");
     tileScrollBlockingEnable();
-    tileScrollLimitingEnable();
+    DbgPrint("[isoInit] tileScrollBlockingEnable succeeded\n");
 
+    DbgPrint("[isoInit] tileScrollLimitingEnable called\n");
+    tileScrollLimitingEnable();
+    DbgPrint("[isoInit] tileScrollLimitingEnable succeeded\n");
+
+    DbgPrint("[isoInit] interfaceInit called\n");
     if (interfaceInit() != 0) {
-        debugPrint("intface_init failed in iso_init\n");
+        DbgPrint("[isoInit] interfaceInit failed in iso_init\n");
         return -1;
     }
-
-    debugPrint(">intface_init\t\t");
+    DbgPrint("[isoInit] interfaceInit succeeded\n");
 
     // SFALL
+    DbgPrint("[isoInit] SFALL elevatorsInit called\n");
     elevatorsInit();
+    DbgPrint("[isoInit] SFALL elevatorsInit succeeded\n");
 
+    DbgPrint("[isoInit] mapMakeMapsDirectory called\n");
     mapMakeMapsDirectory();
+    DbgPrint("[isoInit] mapMakeMapsDirectory succeeded\n");
 
     // NOTE: Uninline.
     mapSetEnteringLocation(-1, -1, -1);

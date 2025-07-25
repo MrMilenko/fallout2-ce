@@ -1,17 +1,18 @@
 #include "sound.h"
 
-#include <fcntl.h>
-#include <limits.h>
-#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
 #ifdef _WIN32
+#ifndef NXDK
 #include <io.h>
+#endif
 #else
+#include <fcntl.h>
 #include <unistd.h>
 #endif
 
+#include <math.h>
 #include <algorithm>
 
 #include <SDL.h>
@@ -198,8 +199,8 @@ static long soundFileSize(int fileHandle)
     long size;
 
     pos = compat_tell(fileHandle);
-    size = lseek(fileHandle, 0, SEEK_END);
-    lseek(fileHandle, pos, SEEK_SET);
+    size = compat_lseek(fileHandle, 0, SEEK_END);
+    compat_lseek(fileHandle, pos, SEEK_SET);
 
     return size;
 }
@@ -213,13 +214,13 @@ static long soundTellData(int fileHandle)
 // 0x4AC758
 static int soundWriteData(int fileHandle, const void* buf, unsigned int size)
 {
-    return write(fileHandle, buf, size);
+    return compat_write(fileHandle, buf, size);
 }
 
 // 0x4AC760
 static int soundReadData(int fileHandle, void* buf, unsigned int size)
 {
-    return read(fileHandle, buf, size);
+    return compat_read(fileHandle, buf, size);
 }
 
 // 0x4AC768
@@ -233,19 +234,19 @@ static int soundOpenData(const char* filePath, int* sampleRate)
     flags = O_RDONLY;
 #endif
 
-    return open(filePath, flags);
+    return compat_open(filePath, flags);
 }
 
 // 0x4AC774
 static long soundSeekData(int fileHandle, long offset, int origin)
 {
-    return lseek(fileHandle, offset, origin);
+    return compat_lseek(fileHandle, offset, origin);
 }
 
 // 0x4AC77C
 static int soundCloseData(int fileHandle)
 {
-    return close(fileHandle);
+    return compat_close(fileHandle);
 }
 
 // 0x4AC78C
@@ -443,9 +444,18 @@ void _refreshSoundBuffers(Sound* sound)
 // 0x4ACC58
 int soundInit(int a1, int numBuffers, int a3, int dataSize, int rate)
 {
-    if (!audioEngineInit()) {
-        debugPrint("soundInit: Unable to init audio engine\n");
+#ifdef NXDK
+    DbgPrint("[soundInit] Called\n");
+    DbgPrint("  numBuffers = %d\n", numBuffers);
+    DbgPrint("  dataSize = %d\n", dataSize);
+    DbgPrint("  rate = %d\n", rate);
+#endif
 
+    if (!audioEngineInit()) {
+#ifdef NXDK
+        DbgPrint("[soundInit] ERROR: audioEngineInit() failed\n");
+        DbgPrint("  SDL Error: %s\n", SDL_GetError());
+#endif
         gSoundLastError = SOUND_SOS_DETECTION_FAILURE;
         return gSoundLastError;
     }
@@ -459,8 +469,14 @@ int soundInit(int a1, int numBuffers, int a3, int dataSize, int rate)
     _soundSetMasterVolume(VOLUME_MAX);
 
     gSoundLastError = SOUND_NO_ERROR;
+
+#ifdef NXDK
+    DbgPrint("[soundInit] Initialization complete. gSoundInitialized = %d\n", gSoundInitialized);
+#endif
+
     return gSoundLastError;
 }
+
 
 // 0x4AD04C
 void soundExit()
@@ -537,7 +553,6 @@ Sound* soundAllocate(int type, int soundFlags)
 
     return sound;
 }
-
 // 0x4AD308
 int _preloadBuffers(Sound* sound)
 {
@@ -548,31 +563,65 @@ int _preloadBuffers(Sound* sound)
     unsigned char* v14;
     int size;
 
+#ifdef NXDK
+    DbgPrint("[_preloadBuffers] Called\n");
+#endif
+
     size = sound->io.filelength(sound->io.fd);
     sound->fileSize = size;
 
+#ifdef NXDK
+    DbgPrint("[_preloadBuffers] File size = %d\n", size);
+#endif
+
     if ((sound->type & SOUND_TYPE_STREAMING) != 0) {
+#ifdef NXDK
+        DbgPrint("[_preloadBuffers] Streaming sound detected\n");
+#endif
         if ((sound->soundFlags & SOUND_LOOPING) == 0) {
             sound->soundFlags |= SOUND_FLAG_0x100 | SOUND_LOOPING;
+#ifdef NXDK
+            DbgPrint("[_preloadBuffers] SOUND_LOOPING and SOUND_FLAG_0x100 added\n");
+#endif
         }
 
         if (sound->numBuffers * sound->dataSize >= size) {
             if (size / sound->dataSize * sound->dataSize != size) {
                 size = (size / sound->dataSize + 1) * sound->dataSize;
+#ifdef NXDK
+                DbgPrint("[_preloadBuffers] Streaming size adjusted to %d\n", size);
+#endif
             }
         } else {
             size = sound->numBuffers * sound->dataSize;
+#ifdef NXDK
+            DbgPrint("[_preloadBuffers] Streaming size limited to buffer total = %d\n", size);
+#endif
         }
     } else {
         sound->type &= ~(SOUND_TYPE_MEMORY | SOUND_TYPE_STREAMING);
         sound->type |= SOUND_TYPE_MEMORY;
+#ifdef NXDK
+        DbgPrint("[_preloadBuffers] Using memory sound type\n");
+#endif
     }
 
     buf = (unsigned char*)gSoundMallocProc(size);
     bytes_read = sound->io.read(sound->io.fd, buf, size);
+
+#ifdef NXDK
+    DbgPrint("[_preloadBuffers] Bytes read = %d\n", bytes_read);
+#endif
+
     if (bytes_read != size) {
+#ifdef NXDK
+        DbgPrint("[_preloadBuffers] Incomplete read, padding or looping...\n");
+#endif
         if ((sound->soundFlags & SOUND_LOOPING) == 0 || (sound->soundFlags & SOUND_FLAG_0x100) != 0) {
             memset(buf + bytes_read, 0, size - bytes_read);
+#ifdef NXDK
+            DbgPrint("[_preloadBuffers] Zero-filled remaining buffer: %d bytes\n", size - bytes_read);
+#endif
         } else {
             v14 = buf + bytes_read;
             v15 = bytes_read;
@@ -585,18 +634,32 @@ int _preloadBuffers(Sound* sound)
             if (v15 < size) {
                 memcpy(v14, buf, size - v15);
             }
+
+#ifdef NXDK
+            DbgPrint("[_preloadBuffers] Buffer duplicated to fill remainder\n");
+#endif
         }
     }
 
     result = _soundSetData(sound, buf, size);
+#ifdef NXDK
+    DbgPrint("[_preloadBuffers] _soundSetData result = %d\n", result);
+#endif
+
     gSoundFreeProc(buf);
 
     if ((sound->type & SOUND_TYPE_MEMORY) != 0) {
         sound->io.close(sound->io.fd);
         sound->io.fd = -1;
+#ifdef NXDK
+        DbgPrint("[_preloadBuffers] Closed file after memory load\n");
+#endif
     } else {
         if (sound->data == nullptr) {
             sound->data = (unsigned char*)gSoundMallocProc(sound->dataSize);
+#ifdef NXDK
+            DbgPrint("[_preloadBuffers] Allocated fallback data buffer of size %d\n", sound->dataSize);
+#endif
         }
     }
 
@@ -606,24 +669,54 @@ int _preloadBuffers(Sound* sound)
 // 0x4AD498
 int soundLoad(Sound* sound, char* filePath)
 {
+#ifdef NXDK
+    DbgPrint("[soundLoad] Called with filePath = %s\n", filePath);
+#endif
+
     if (!gSoundInitialized) {
+#ifdef NXDK
+        DbgPrint("[soundLoad] Sound system not initialized.\n");
+#endif
         gSoundLastError = SOUND_NOT_INITIALIZED;
         return gSoundLastError;
     }
 
     if (sound == nullptr) {
+#ifdef NXDK
+        DbgPrint("[soundLoad] Null Sound* pointer passed in.\n");
+#endif
         gSoundLastError = SOUND_NO_SOUND;
         return gSoundLastError;
     }
 
-    sound->io.fd = sound->io.open(gSoundFileNameMangler(filePath), &(sound->rate));
+#ifdef NXDK
+    const char* mangledPath = gSoundFileNameMangler(filePath);
+    DbgPrint("[soundLoad] Mangled path: %s\n", mangledPath);
+#else
+    const char* mangledPath = gSoundFileNameMangler(filePath);
+#endif
+
+    sound->io.fd = sound->io.open(mangledPath, &(sound->rate));
+
+#ifdef NXDK
+    DbgPrint("[soundLoad] Opened file: fd = %d, rate = %d\n", sound->io.fd, sound->rate);
+#endif
+
     if (sound->io.fd == -1) {
+#ifdef NXDK
+        DbgPrint("[soundLoad] Failed to open sound file.\n");
+#endif
         gSoundLastError = SOUND_FILE_NOT_FOUND;
         return gSoundLastError;
     }
 
+#ifdef NXDK
+    DbgPrint("[soundLoad] Calling _preloadBuffers...\n");
+#endif
+
     return _preloadBuffers(sound);
 }
+
 
 // 0x4AD504
 int _soundRewind(Sound* sound)
@@ -697,26 +790,60 @@ int _addSoundData(Sound* sound, unsigned char* buf, int size)
 // 0x4AD6C0
 int _soundSetData(Sound* sound, unsigned char* buf, int size)
 {
+#ifdef NXDK
+    DbgPrint("[_soundSetData] Called\n");
+    DbgPrint("  gSoundInitialized = %d\n", gSoundInitialized);
+    DbgPrint("  sound = %p\n", sound);
+    DbgPrint("  buf = %p\n", buf);
+    DbgPrint("  size = %d\n", size);
+#endif
+
     if (!gSoundInitialized) {
         gSoundLastError = SOUND_NOT_INITIALIZED;
+#ifdef NXDK
+        DbgPrint("[_soundSetData] ERROR: Sound system not initialized\n");
+#endif
         return gSoundLastError;
     }
 
     if (sound == nullptr) {
         gSoundLastError = SOUND_NO_SOUND;
+#ifdef NXDK
+        DbgPrint("[_soundSetData] ERROR: Sound is null\n");
+#endif
         return gSoundLastError;
     }
 
+#ifdef NXDK
+    DbgPrint("  sound->soundBuffer = %d\n", sound->soundBuffer);
+    DbgPrint("  sound->bitsPerSample = %d\n", sound->bitsPerSample);
+    DbgPrint("  sound->channels = %d\n", sound->channels);
+    DbgPrint("  sound->rate = %d\n", sound->rate);
+#endif
+
     if (sound->soundBuffer == -1) {
         sound->soundBuffer = audioEngineCreateSoundBuffer(size, sound->bitsPerSample, sound->channels, sound->rate);
+
+#ifdef NXDK
+        DbgPrint("  Created new soundBuffer = %d\n", sound->soundBuffer);
+#endif
+
         if (sound->soundBuffer == -1) {
             gSoundLastError = SOUND_UNKNOWN_ERROR;
+#ifdef NXDK
+            DbgPrint("[_soundSetData] ERROR: Failed to create sound buffer\n");
+#endif
             return gSoundLastError;
         }
     }
 
+#ifdef NXDK
+    DbgPrint("[_soundSetData] Calling _addSoundData\n");
+#endif
+
     return _addSoundData(sound, buf, size);
 }
+
 
 // 0x4AD73C
 int soundPlay(Sound* sound)

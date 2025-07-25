@@ -2,7 +2,7 @@
 
 #include <limits.h>
 #include <string.h>
-
+#include "xboxkrnl/xboxkrnl.h"
 #include "art.h"
 #include "autorun.h"
 #include "character_selector.h"
@@ -71,50 +71,69 @@ static bool _main_show_death_scene = false;
 static bool _main_death_voiceover_done;
 
 // 0x48099C
+// 0x48099C
 int falloutMain(int argc, char** argv)
 {
+    DbgPrint("falloutMain: started\n");
+
     if (!autorunMutexCreate()) {
+        DbgPrint("falloutMain: autorunMutexCreate failed\n");
         return 1;
     }
+
+    DbgPrint("falloutMain: autorunMutexCreate succeeded\n");
 
     if (!falloutInit(argc, argv)) {
+        DbgPrint("falloutMain: falloutInit failed\n");
         return 1;
     }
 
-    // SFALL: Allow to skip intro movies
+    DbgPrint("falloutMain: falloutInit succeeded\n");
+
     int skipOpeningMovies;
     configGetInt(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_SKIP_OPENING_MOVIES_KEY, &skipOpeningMovies);
+    DbgPrint("falloutMain: skipOpeningMovies = %d\n", skipOpeningMovies);
+
     if (skipOpeningMovies < 1) {
+        DbgPrint("falloutMain: playing intro movies\n");
         gameMoviePlay(MOVIE_IPLOGO, GAME_MOVIE_FADE_IN);
         gameMoviePlay(MOVIE_INTRO, 0);
         gameMoviePlay(MOVIE_CREDITS, 0);
     }
 
     if (mainMenuWindowInit() == 0) {
+        DbgPrint("falloutMain: mainMenuWindowInit succeeded\n");
+
         bool done = false;
         while (!done) {
+            DbgPrint("falloutMain: top of main loop\n");
+
             keyboardReset();
             _gsound_background_play_level_music("07desert", 11);
             mainMenuWindowUnhide(1);
 
             mouseShowCursor();
             int mainMenuRc = mainMenuWindowHandleEvents();
+            DbgPrint("falloutMain: mainMenuWindowHandleEvents returned %d\n", mainMenuRc);
             mouseHideCursor();
 
             switch (mainMenuRc) {
             case MAIN_MENU_INTRO:
+                DbgPrint("falloutMain: MAIN_MENU_INTRO\n");
                 mainMenuWindowHide(true);
                 gameMoviePlay(MOVIE_INTRO, GAME_MOVIE_STOP_MUSIC);
                 gameMoviePlay(MOVIE_CREDITS, 0);
                 break;
             case MAIN_MENU_NEW_GAME:
+                DbgPrint("falloutMain: MAIN_MENU_NEW_GAME\n");
                 mainMenuWindowHide(true);
                 mainMenuWindowFree();
+
                 if (characterSelectorOpen() == 2) {
+                    DbgPrint("falloutMain: characterSelectorOpen returned 2\n");
                     gameMoviePlay(MOVIE_ELDER, GAME_MOVIE_STOP_MUSIC);
                     randomSeedPrerandom(-1);
 
-                    // SFALL: Override starting map.
                     char* mapName = nullptr;
                     if (configGetString(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_STARTING_MAP_KEY, &mapName)) {
                         if (*mapName == '\0') {
@@ -122,43 +141,46 @@ int falloutMain(int argc, char** argv)
                         }
                     }
 
+                    DbgPrint("falloutMain: using map %s\n", mapName != nullptr ? mapName : _mainMap);
                     char* mapNameCopy = compat_strdup(mapName != nullptr ? mapName : _mainMap);
                     _main_load_new(mapNameCopy);
                     free(mapNameCopy);
 
-                    // SFALL: AfterNewGameStartHook.
+                    DbgPrint("falloutMain: mainLoop begin\n");
                     sfall_gl_scr_exec_start_proc();
-
                     mainLoop();
+                    DbgPrint("falloutMain: mainLoop finished\n");
+
                     paletteFadeTo(gPaletteWhite);
-
-                    // NOTE: Uninline.
                     main_unload_new();
-
-                    // NOTE: Uninline.
                     main_reset_system();
 
                     if (_main_show_death_scene != 0) {
+                        DbgPrint("falloutMain: showing death scene\n");
                         showDeath();
                         _main_show_death_scene = 0;
                     }
                 }
 
+                DbgPrint("falloutMain: reinitializing main menu\n");
                 mainMenuWindowInit();
-
                 break;
+
             case MAIN_MENU_LOAD_GAME:
-                if (1) {
+                DbgPrint("falloutMain: MAIN_MENU_LOAD_GAME\n");
+                {
                     int win = windowCreate(0, 0, screenGetWidth(), screenGetHeight(), _colorTable[0], WINDOW_MODAL | WINDOW_MOVE_ON_TOP);
                     mainMenuWindowHide(true);
                     mainMenuWindowFree();
 
-                    // NOTE: Uninline.
                     main_loadgame_new();
-
+                    
                     colorPaletteLoad("color.pal");
                     paletteFadeTo(_cmap);
+
                     int loadGameRc = lsgLoadGame(LOAD_SAVE_MODE_FROM_MAIN_MENU);
+                    DbgPrint("falloutMain: lsgLoadGame returned %d\n", loadGameRc);
+
                     if (loadGameRc == -1) {
                         debugPrint("\n ** Error running LoadGame()! **\n");
                     } else if (loadGameRc != 0) {
@@ -166,66 +188,82 @@ int falloutMain(int argc, char** argv)
                         win = -1;
                         mainLoop();
                     }
+
                     paletteFadeTo(gPaletteWhite);
                     if (win != -1) {
                         windowDestroy(win);
                     }
 
-                    // NOTE: Uninline.
                     main_unload_new();
-
-                    // NOTE: Uninline.
                     main_reset_system();
 
                     if (_main_show_death_scene != 0) {
+                        DbgPrint("falloutMain: showing death scene after load\n");
                         showDeath();
                         _main_show_death_scene = 0;
                     }
+
                     mainMenuWindowInit();
                 }
                 break;
+
             case MAIN_MENU_TIMEOUT:
+                DbgPrint("falloutMain: MAIN_MENU_TIMEOUT\n");
                 debugPrint("Main menu timed-out\n");
                 // FALLTHROUGH
             case MAIN_MENU_SCREENSAVER:
+                DbgPrint("falloutMain: MAIN_MENU_SCREENSAVER\n");
                 mainMenuWindowHide(true);
                 gameMoviePlay(MOVIE_INTRO, GAME_MOVIE_PAUSE_MUSIC);
                 break;
+
             case MAIN_MENU_OPTIONS:
+                DbgPrint("falloutMain: MAIN_MENU_OPTIONS\n");
                 mainMenuWindowHide(true);
                 doPreferences(true);
                 break;
+
             case MAIN_MENU_CREDITS:
+                DbgPrint("falloutMain: MAIN_MENU_CREDITS\n");
                 mainMenuWindowHide(true);
                 creditsOpen("credits.txt", -1, false);
                 break;
+
             case MAIN_MENU_QUOTES:
-                // NOTE: There is a strange cmp at 0x480C50. Both operands are
-                // zero, set before the loop and do not modify afterwards. For
-                // clarity this condition is omitted.
+                DbgPrint("falloutMain: MAIN_MENU_QUOTES\n");
                 mainMenuWindowHide(true);
                 creditsOpen("quotes.txt", -1, true);
                 break;
+
             case MAIN_MENU_EXIT:
             case -1:
+                DbgPrint("falloutMain: MAIN_MENU_EXIT or -1\n");
                 done = true;
                 mainMenuWindowHide(true);
                 mainMenuWindowFree();
                 backgroundSoundDelete();
                 break;
+
             case MAIN_MENU_SELFRUN:
+                DbgPrint("falloutMain: MAIN_MENU_SELFRUN (unhandled)\n");
+                break;
+
+            default:
+                DbgPrint("falloutMain: unknown menu result %d\n", mainMenuRc);
                 break;
             }
         }
+    } else {
+        DbgPrint("falloutMain: mainMenuWindowInit failed\n");
     }
 
-    // NOTE: Uninline.
     main_exit_system();
-
     autorunMutexClose();
 
+    DbgPrint("falloutMain: exiting cleanly\n");
     return 0;
 }
+
 
 // 0x480CC0
 static bool falloutInit(int argc, char** argv)
@@ -260,28 +298,101 @@ static void main_exit_system()
 // 0x480D4C
 static int _main_load_new(char* mapFileName)
 {
+#ifdef NXDK
+    DbgPrint("[_main_load_new] Called with mapFileName = %s\n", mapFileName);
+#endif
+
     _game_user_wants_to_quit = 0;
     _main_show_death_scene = 0;
+
+#ifdef NXDK
+    DbgPrint("[_main_load_new] Reset _game_user_wants_to_quit and _main_show_death_scene\n");
+#endif
+
     gDude->flags &= ~OBJECT_FLAT;
+#ifdef NXDK
+    DbgPrint("[_main_load_new] Cleared OBJECT_FLAT from gDude->flags\n");
+#endif
+
     objectShow(gDude, nullptr);
+#ifdef NXDK
+    DbgPrint("[_main_load_new] Called objectShow(gDude)\n");
+#endif
+
     mouseHideCursor();
+#ifdef NXDK
+    DbgPrint("[_main_load_new] Called mouseHideCursor()\n");
+#endif
 
     int win = windowCreate(0, 0, screenGetWidth(), screenGetHeight(), _colorTable[0], WINDOW_MODAL | WINDOW_MOVE_ON_TOP);
+#ifdef NXDK
+    DbgPrint("[_main_load_new] Created modal window: win = %d\n", win);
+#endif
+
     windowRefresh(win);
+#ifdef NXDK
+    DbgPrint("[_main_load_new] Refreshed window %d\n", win);
+#endif
 
     colorPaletteLoad("color.pal");
+#ifdef NXDK
+    DbgPrint("[_main_load_new] colorPaletteLoad(\"color.pal\") completed\n");
+#endif
+
     paletteFadeTo(_cmap);
+#ifdef NXDK
+    DbgPrint("[_main_load_new] paletteFadeTo(_cmap) completed\n");
+#endif
+
     _map_init();
+#ifdef NXDK
+    DbgPrint("[_main_load_new] _map_init() completed\n");
+#endif
+
     gameMouseSetCursor(MOUSE_CURSOR_NONE);
+#ifdef NXDK
+    DbgPrint("[_main_load_new] gameMouseSetCursor(MOUSE_CURSOR_NONE)\n");
+#endif
+
     mouseShowCursor();
+#ifdef NXDK
+    DbgPrint("[_main_load_new] mouseShowCursor()\n");
+#endif
+
     mapLoadByName(mapFileName);
+#ifdef NXDK
+    DbgPrint("[_main_load_new] mapLoadByName(%s) completed\n", mapFileName);
+#endif
+
     wmMapMusicStart();
+#ifdef NXDK
+    DbgPrint("[_main_load_new] wmMapMusicStart() completed\n");
+#endif
+
     paletteFadeTo(gPaletteWhite);
+#ifdef NXDK
+    DbgPrint("[_main_load_new] paletteFadeTo(gPaletteWhite) completed\n");
+#endif
+
     windowDestroy(win);
+#ifdef NXDK
+    DbgPrint("[_main_load_new] windowDestroy(%d) completed\n", win);
+#endif
+
     colorPaletteLoad("color.pal");
+#ifdef NXDK
+    DbgPrint("[_main_load_new] colorPaletteLoad(\"color.pal\") (post-map) completed\n");
+#endif
+
     paletteFadeTo(_cmap);
+#ifdef NXDK
+    DbgPrint("[_main_load_new] paletteFadeTo(_cmap) (post-map) completed\n");
+    DbgPrint("[_main_load_new] Done. Returning 0.\n");
+#endif
+
     return 0;
 }
+
 
 // NOTE: Inlined.
 //

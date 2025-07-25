@@ -1,7 +1,9 @@
 #include "input.h"
 
 #include <SDL.h>
-
+#ifdef NXDK
+#include "xboxkrnl/xboxkrnl.h"
+#endif
 #include "audio_engine.h"
 #include "color.h"
 #include "delay.h"
@@ -101,21 +103,53 @@ static unsigned int gTickerLastTimestamp;
 // 0x4C8A70
 int inputInit(int a1)
 {
+#ifdef NXDK
+    DbgPrint("[inputInit] Starting input initialization\n");
+#endif
+
     if (!directInputInit()) {
+#ifdef NXDK
+        DbgPrint("[inputInit] directInputInit() failed\n");
+#endif
         return -1;
     }
+
+#ifdef NXDK
+    DbgPrint("[inputInit] directInputInit() succeeded\n");
+#endif
 
     if (keyboardInit() == -1) {
+#ifdef NXDK
+        DbgPrint("[inputInit] keyboardInit() failed\n");
+#endif
         return -1;
     }
+
+#ifdef NXDK
+    DbgPrint("[inputInit] keyboardInit() succeeded\n");
+#endif
 
     if (mouseInit() == -1) {
+#ifdef NXDK
+        DbgPrint("[inputInit] mouseInit() failed\n");
+#endif
         return -1;
     }
 
+#ifdef NXDK
+    DbgPrint("[inputInit] mouseInit() succeeded\n");
+#endif
+
     if (_GNW95_input_init() == -1) {
+#ifdef NXDK
+        DbgPrint("[inputInit] _GNW95_input_init() failed\n");
+#endif
         return -1;
     }
+
+#ifdef NXDK
+    DbgPrint("[inputInit] _GNW95_input_init() succeeded\n");
+#endif
 
     buildNormalizedQwertyKeys();
     _GNW95_clear_time_stamps();
@@ -130,8 +164,13 @@ int inputInit(int a1)
     gTickerListHead = nullptr;
     gScreenshotKeyCode = KEY_ALT_C;
 
+#ifdef NXDK
+    DbgPrint("[inputInit] Completed successfully\n");
+#endif
+
     return 0;
 }
+
 
 // 0x4C8B40
 void inputExit()

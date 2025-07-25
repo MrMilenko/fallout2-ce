@@ -608,8 +608,15 @@ static void opParseInt(Program* program)
 static void op_atof(Program* program)
 {
     const char* string = programStackPopString(program);
-    programStackPushFloat(program, static_cast<float>(atof(string)));
+
+    // strtod is safe and supported in NXDK
+    char* endptr = nullptr;
+    double val = strtod(string, &endptr);
+
+    // Push the result as a float (like original did)
+    programStackPushFloat(program, static_cast<float>(val));
 }
+
 
 // tile_under_cursor
 static void op_tile_under_cursor(Program* program)

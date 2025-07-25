@@ -1,5 +1,4 @@
 #include "dfile.h"
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,6 +41,19 @@ static DFile* dfileOpenInternal(DBase* dbase, const char* filename, const char* 
 static int dfileReadCharInternal(DFile* stream);
 static bool dfileReadCompressed(DFile* stream, void* ptr, size_t size);
 static void dfileUngetCompressed(DFile* stream, int ch);
+
+// NXDK - No idea why these needed to be made, but they work as intended. We have zlib though, so wtf.
+static voidpf zlib_alloc(voidpf opaque, uInt items, uInt size)
+{
+    (void)opaque;
+    return malloc(items * size);
+}
+
+static void zlib_free(voidpf opaque, voidpf address)
+{
+    (void)opaque;
+    free(address);
+}
 
 // Reads .DAT file contents.
 //
@@ -350,47 +362,37 @@ int dfileReadChar(DFile* stream)
     return ch;
 }
 
-// [fgets].
-//
-// Both Windows (\r\n) and Unix (\n) line endings are recognized. Windows
-// line ending is reported as \n.
-//
-// 0x4E5764
 char* dfileReadString(char* string, int size, DFile* stream)
 {
-    assert(string); // "s", "dfile.c", 407
-    assert(size); // "n", "dfile.c", 408
-    assert(stream); // "stream", "dfile.c", 409
+    if (!string || size <= 0 || !stream) {
+        return nullptr;
+    }
 
-    if ((stream->flags & DFILE_EOF) != 0 || (stream->flags & DFILE_ERROR) != 0) {
+    if ((stream->flags & (DFILE_EOF | DFILE_ERROR)) != 0) {
         return nullptr;
     }
 
     char* pch = string;
+    int charsRead = 0;
 
     if ((stream->flags & DFILE_HAS_UNGETC) != 0) {
-        *pch++ = stream->ungotten & 0xFF;
+        *pch++ = static_cast<char>(stream->ungotten & 0xFF);
         size--;
         stream->flags &= ~DFILE_HAS_UNGETC;
+        charsRead++;
     }
 
-    // Read up to size - 1 characters one by one saving space for the null
-    // terminator.
-    for (int index = 0; index < size - 1; index++) {
+    for (int i = 0; i < size - 1; i++) {
         int ch = dfileReadCharInternal(stream);
-        if (ch == -1) {
-            break;
-        }
+        if (ch == -1) break;
 
-        *pch++ = ch & 0xFF;
+        *pch++ = static_cast<char>(ch & 0xFF);
+        charsRead++;
 
-        if (ch == '\n') {
-            break;
-        }
+        if (ch == '\n') break;
     }
 
     if (pch == string) {
-        // No character was set into the buffer.
         return nullptr;
     }
 
@@ -567,8 +569,8 @@ int dfileSeek(DFile* stream, long offset, int origin)
         return 1;
     }
 
-    stream->decompressionStream->zalloc = Z_NULL;
-    stream->decompressionStream->zfree = Z_NULL;
+    stream->decompressionStream->zalloc = zlib_alloc;
+    stream->decompressionStream->zfree = zlib_free;
     stream->decompressionStream->opaque = Z_NULL;
     stream->decompressionStream->next_in = stream->decompressionBuffer;
     stream->decompressionStream->avail_in = 0;
@@ -629,9 +631,9 @@ static int dbaseFindEntryByFilePath(const void* a1, const void* a2)
     return compat_stricmp(filePath, entry->path);
 }
 
-// 0x4E5D9C
 static DFile* dfileOpenInternal(DBase* dbase, const char* filePath, const char* mode, DFile* dfile)
 {
+
     DBaseEntry* entry = (DBaseEntry*)bsearch(filePath, dbase->entries, dbase->entriesLength, sizeof(*dbase->entries), dbaseFindEntryByFilePath);
     if (entry == nullptr) {
         goto err;
@@ -668,22 +670,17 @@ static DFile* dfileOpenInternal(DBase* dbase, const char* filePath, const char* 
 
     dfile->entry = entry;
 
-    // Open stream to .DAT file.
     dfile->stream = compat_fopen(dbase->path, "rb");
     if (dfile->stream == nullptr) {
         goto err;
     }
 
-    // Relocate stream to the beginning of data for specified entry.
     if (fseek(dfile->stream, dbase->dataOffset + entry->dataOffset, SEEK_SET) != 0) {
         goto err;
     }
 
     if (entry->compressed == 1) {
-        // Entry is compressed, setup decompression stream and decompression
-        // buffer. This step is not needed when previous instance of dfile is
-        // passed via parameter, which might already have stream and
-        // buffer allocated.
+
         if (dfile->decompressionStream == nullptr) {
             dfile->decompressionStream = (z_streamp)malloc(sizeof(*dfile->decompressionStream));
             if (dfile->decompressionStream == nullptr) {
@@ -696,8 +693,8 @@ static DFile* dfileOpenInternal(DBase* dbase, const char* filePath, const char* 
             }
         }
 
-        dfile->decompressionStream->zalloc = Z_NULL;
-        dfile->decompressionStream->zfree = Z_NULL;
+        dfile->decompressionStream->zalloc = zlib_alloc;
+        dfile->decompressionStream->zfree = zlib_free;
         dfile->decompressionStream->opaque = Z_NULL;
         dfile->decompressionStream->next_in = dfile->decompressionBuffer;
         dfile->decompressionStream->avail_in = 0;
@@ -706,9 +703,6 @@ static DFile* dfileOpenInternal(DBase* dbase, const char* filePath, const char* 
             goto err;
         }
     } else {
-        // Entry is not compressed, there is no need to keep decompression
-        // stream and decompression buffer (in case [dfile] was passed via
-        // parameter).
         if (dfile->decompressionStream != nullptr) {
             free(dfile->decompressionStream);
             dfile->decompressionStream = nullptr;
@@ -727,7 +721,6 @@ static DFile* dfileOpenInternal(DBase* dbase, const char* filePath, const char* 
     return dfile;
 
 err:
-
     if (dfile != nullptr) {
         dfileClose(dfile);
     }
@@ -745,16 +738,13 @@ static int dfileReadCharInternal(DFile* stream)
         }
 
         if ((stream->flags & DFILE_TEXT) != 0) {
-            // NOTE: I'm not sure if they are comparing as chars or ints. Since
-            // character literals are ints, let's cast read characters to int as
-            // well.
             if (ch == '\r') {
                 char nextCh;
                 if (dfileReadCompressed(stream, &nextCh, sizeof(nextCh))) {
                     if (nextCh == '\n') {
                         ch = nextCh;
+
                     } else {
-                        // NOTE: Uninline.
                         dfileUngetCompressed(stream, nextCh & 0xFF);
                     }
                 }
@@ -764,14 +754,15 @@ static int dfileReadCharInternal(DFile* stream)
         return ch & 0xFF;
     }
 
+    // Uncompressed path (probably unused here, but still log it)
     if (stream->position >= stream->entry->uncompressedSize) {
+
         return -1;
     }
 
     int ch = fgetc(stream->stream);
     if (ch != -1) {
         if ((stream->flags & DFILE_TEXT) != 0) {
-            // This is a text stream, attempt to detect \r\n sequence.
             if (ch == '\r') {
                 if (stream->position + 1 < stream->entry->uncompressedSize) {
                     int nextCh = fgetc(stream->stream);

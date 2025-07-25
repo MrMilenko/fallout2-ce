@@ -1,10 +1,13 @@
+set (XBE_TITLE fallout2-ce)
+set (XBOX_ISO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/fallout2-ce)
+
 cmake_minimum_required(VERSION 3.13)
 
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 
 set(EXECUTABLE_NAME fallout2-ce)
 
-if(APPLE)
+if (APPLE)
     if(IOS)
         set(CMAKE_OSX_DEPLOYMENT_TARGET "12" CACHE STRING "")
         set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "")
@@ -16,17 +19,45 @@ endif()
 
 project(${EXECUTABLE_NAME})
 
+if (NXDK) 
+include(FindPkgConfig)
+endif()
+
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Debug)
+endif()
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
+set(CMAKE_C_FLAGS_DEBUG "-g")
+set(CMAKE_CXX_FLAGS_RELEASE "-O2")
+set(CMAKE_C_FLAGS_RELEASE "-O2")
+
+# Stop lots of warning spam
+add_compile_options(-Wno-builtin-macro-redefined)
+add_definitions(-DXBOX -DNXDK)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
-option(FALLOUT_VENDORED "Use vendored third-party libraries" ON)
+option(ASAN "Enable address sanitizer" OFF)
+option(UBSAN "Enable undefined behaviour sanitizer" OFF)
 
-if(ANDROID)
+if (ANDROID)
     add_library(${EXECUTABLE_NAME} SHARED)
 else()
     add_executable(${EXECUTABLE_NAME} WIN32 MACOSX_BUNDLE)
 endif()
+
+if(ASAN)
+    target_compile_options(${EXECUTABLE_NAME} PUBLIC "-fsanitize=address;-fsanitize-recover=address")
+    target_link_options(${EXECUTABLE_NAME} PUBLIC "-fsanitize=address;-fsanitize-recover=address")
+endif()
+if(UBSAN)
+    target_compile_options(${EXECUTABLE_NAME} PUBLIC "-fsanitize=undefined")
+    target_link_options(${EXECUTABLE_NAME} PUBLIC "-fsanitize=undefined")
+endif()
+
+target_include_directories(${EXECUTABLE_NAME} PUBLIC src)
 
 target_sources(${EXECUTABLE_NAME} PUBLIC
     "src/actions.cc"
@@ -307,7 +338,7 @@ if(WIN32)
     )
 endif()
 
-if(WIN32)
+if (WIN32)
     target_sources(${EXECUTABLE_NAME} PUBLIC
         "os/windows/fallout2-ce.ico"
         "os/windows/fallout2-ce.rc"
@@ -357,18 +388,31 @@ if(APPLE)
     set(MACOSX_BUNDLE_SHORT_VERSION_STRING "1.3.0")
     set(MACOSX_BUNDLE_BUNDLE_VERSION "1.3.0")
 endif()
+if((NOT ${CMAKE_SYSTEM_NAME} MATCHES "Linux") AND
+   (NOT ${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD") AND
+   (NOT ${CMAKE_SYSTEM_NAME} MATCHES "OpenBSD") AND
+   (NOT NXDK))
+    add_subdirectory("third_party/fpattern")
+    target_link_libraries(${EXECUTABLE_NAME} fpattern::fpattern)
+
+    if(FALLOUT_VENDORED)
+        add_subdirectory("third_party/zlib")
+        add_subdirectory("third_party/sdl2")
+    else()
+        find_package(ZLIB)
+        find_package(SDL2)
+    endif()
+endif()
+
+if(NXDK)
+    pkg_search_module(ZLIB REQUIRED zlib)
+    pkg_search_module(SDL2 REQUIRED sdl2)
+endif()
+add_subdirectory("third_party/adecode")
+target_link_libraries(${EXECUTABLE_NAME} adecode::adecode)
 
 add_subdirectory("third_party/fpattern")
 target_link_libraries(${EXECUTABLE_NAME} fpattern::fpattern)
-
-if(FALLOUT_VENDORED)
-    add_subdirectory("third_party/zlib")
-    add_subdirectory("third_party/sdl2")
-else()
-    find_package(ZLIB)
-    find_package(SDL2)
-endif()
-
 target_link_libraries(${EXECUTABLE_NAME} ${ZLIB_LIBRARIES})
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${ZLIB_INCLUDE_DIRS})
 
@@ -392,4 +436,25 @@ if(APPLE)
     endif()
 
     include(CPack)
+endif()
+
+if (NXDK)
+    #Post-build exe to xbe conversion
+    add_custom_target(cxbe_convert ALL
+        VERBATIM COMMAND "${CMAKE_COMMAND}" -E env ./tools/cxbe/cxbe -OUT:${XBOX_ISO_DIR}/default.xbe -TITLE:${XBE_TITLE} ${CMAKE_CURRENT_BINARY_DIR}/${XBE_TITLE}.exe
+        WORKING_DIRECTORY ${NXDK_DIR}
+        COMMENT "CXBE Conversion: [EXE -> XBE]"
+    )
+    add_dependencies(cxbe_convert fallout2-ce)
+
+    #Post-build xbe to xiso conversion
+    add_custom_target(xbe_iso ALL
+        VERBATIM COMMAND "${CMAKE_COMMAND}" -E env ${NXDK_DIR}/tools/extract-xiso/build/extract-xiso -c ${XBOX_ISO_DIR}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMENT "CXBE Conversion: [XBE -> XISO]"
+    )
+    add_dependencies(xbe_iso cxbe_convert)
+
+    set_target_properties(cxbe_convert PROPERTIES OUTPUT_QUIET ON)
+    set_target_properties(xbe_iso PROPERTIES OUTPUT_QUIET ON)
 endif()

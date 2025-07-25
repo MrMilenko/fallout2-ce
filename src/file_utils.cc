@@ -2,7 +2,9 @@
 // of regular __usercall.
 
 #include "file_utils.h"
-
+#ifdef NXDK
+#include "xboxkrnl/xboxkrnl.h"
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <zlib.h>
@@ -18,6 +20,11 @@ static void fileCopy(const char* existingFilePath, const char* newFilePath);
 // 0x452740
 int fileCopyDecompressed(const char* existingFilePath, const char* newFilePath)
 {
+#ifdef NXDK
+    DbgPrint("fileCopyDecompressed() - skipping GZip support, doing raw copy\n");
+    fileCopy(existingFilePath, newFilePath);
+    return 0;
+#else
     FILE* stream = compat_fopen(existingFilePath, "rb");
     if (stream == nullptr) {
         return -1;
@@ -45,14 +52,8 @@ int fileCopyDecompressed(const char* existingFilePath, const char* newFilePath)
             gzclose(inStream);
             fclose(outStream);
         } else {
-            if (inStream != nullptr) {
-                gzclose(inStream);
-            }
-
-            if (outStream != nullptr) {
-                fclose(outStream);
-            }
-
+            if (inStream != nullptr) gzclose(inStream);
+            if (outStream != nullptr) fclose(outStream);
             return -1;
         }
     } else {
@@ -60,11 +61,18 @@ int fileCopyDecompressed(const char* existingFilePath, const char* newFilePath)
     }
 
     return 0;
+#endif
 }
+
 
 // 0x452804
 int fileCopyCompressed(const char* existingFilePath, const char* newFilePath)
 {
+#ifdef NXDK
+    DbgPrint("fileCopyCompressed() - skipping GZip support, doing raw copy\n");
+    fileCopy(existingFilePath, newFilePath);
+    return 0;
+#else
     FILE* inStream = compat_fopen(existingFilePath, "rb");
     if (inStream == nullptr) {
         return -1;
@@ -76,8 +84,6 @@ int fileCopyCompressed(const char* existingFilePath, const char* newFilePath)
     rewind(inStream);
 
     if (magic[0] == 0x1F && magic[1] == 0x8B) {
-        // Source file is already gzipped, there is no need to do anything
-        // besides copying.
         fclose(inStream);
         fileCopy(existingFilePath, newFilePath);
     } else {
@@ -87,13 +93,9 @@ int fileCopyCompressed(const char* existingFilePath, const char* newFilePath)
             return -1;
         }
 
-        // Copy byte-by-byte.
         for (;;) {
             int ch = fgetc(inStream);
-            if (ch == -1) {
-                break;
-            }
-
+            if (ch == -1) break;
             gzputc(outStream, ch);
         }
 
@@ -102,27 +104,27 @@ int fileCopyCompressed(const char* existingFilePath, const char* newFilePath)
     }
 
     return 0;
+#endif
 }
 
-// TODO: Check, implementation looks odd.
 int _gzdecompress_file(const char* existingFilePath, const char* newFilePath)
 {
+#ifdef NXDK
+    DbgPrint("_gzdecompress_file() - skipping, just copying file\n");
+    fileCopy(existingFilePath, newFilePath);
+    return 0;
+#else
     FILE* stream = compat_fopen(existingFilePath, "rb");
-    if (stream == nullptr) {
-        return -1;
-    }
+    if (stream == nullptr) return -1;
 
     int magic[2];
     magic[0] = fgetc(stream);
     magic[1] = fgetc(stream);
     fclose(stream);
 
-    // TODO: Is it broken?
     if (magic[0] != 0x1F || magic[1] != 0x8B) {
         gzFile gzstream = compat_gzopen(existingFilePath, "rb");
-        if (gzstream == nullptr) {
-            return -1;
-        }
+        if (gzstream == nullptr) return -1;
 
         stream = compat_fopen(newFilePath, "wb");
         if (stream == nullptr) {
@@ -132,10 +134,7 @@ int _gzdecompress_file(const char* existingFilePath, const char* newFilePath)
 
         while (1) {
             int ch = gzgetc(gzstream);
-            if (ch == -1) {
-                break;
-            }
-
+            if (ch == -1) break;
             fputc(ch, stream);
         }
 
@@ -146,6 +145,7 @@ int _gzdecompress_file(const char* existingFilePath, const char* newFilePath)
     }
 
     return 0;
+#endif
 }
 
 static void fileCopy(const char* existingFilePath, const char* newFilePath)

@@ -4,7 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#ifdef NXDK
+#include "xboxkrnl/xboxkrnl.h"
+#endif
 #include <array>
 #include <unordered_map>
 
@@ -224,14 +226,18 @@ bool messageListLoad(MessageList* messageList, const char* path)
     }
 
     snprintf(localized_path, sizeof(localized_path), "%s\\%s\\%s", "text", settings.system.language.c_str(), path);
-
     file_ptr = fileOpen(localized_path, "rt");
 
     // SFALL: Fallback to english if requested localization does not exist.
     if (file_ptr == nullptr) {
         if (compat_stricmp(settings.system.language.c_str(), ENGLISH) != 0) {
             snprintf(localized_path, sizeof(localized_path), "%s\\%s\\%s", "text", ENGLISH, path);
-            file_ptr = fileOpen(localized_path, "rt");
+    #ifdef NXDK
+    DbgPrint("[messageListLoad] Attempting to open message file with \"rb\": %s\n", localized_path);
+    file_ptr = fileOpen(localized_path, "rb");
+    #else
+    file_ptr = fileOpen(localized_path, "rt");
+    #endif
         }
     }
 
@@ -250,22 +256,22 @@ bool messageListLoad(MessageList* messageList, const char* path)
         }
 
         if (_message_load_field(file_ptr, audio) != 0) {
-            debugPrint("\nError loading audio field.\n", localized_path);
+            DbgPrint("\nError loading audio field.\n", localized_path);
             goto err;
         }
 
         if (_message_load_field(file_ptr, text) != 0) {
-            debugPrint("\nError loading text field.\n", localized_path);
+            DbgPrint("\nError loading text field.\n", localized_path);
             goto err;
         }
 
         if (!_message_parse_number(&(entry.num), num)) {
-            debugPrint("\nError parsing number.\n", localized_path);
+            DbgPrint("\nError parsing number.\n", localized_path);
             goto err;
         }
 
         if (!_message_add(messageList, &entry)) {
-            debugPrint("\nError adding message.\n", localized_path);
+            DbgPrint("\nError adding message.\n", localized_path);
             goto err;
         }
     }
@@ -277,7 +283,7 @@ bool messageListLoad(MessageList* messageList, const char* path)
 err:
 
     if (!success) {
-        debugPrint("Error loading message file %s at offset %x.", localized_path, fileTell(file_ptr));
+        DbgPrint("Error loading message file %s at offset %x.", localized_path, fileTell(file_ptr));
     }
 
     fileClose(file_ptr);

@@ -1,5 +1,7 @@
 #include "settings.h"
-
+#ifdef NXDK
+#include "xboxkrnl/xboxkrnl.h"
+#endif
 namespace fallout {
 
 static void settingsFromConfig();
@@ -17,14 +19,28 @@ Settings settings;
 
 bool settingsInit(bool isMapper, int argc, char** argv)
 {
+#ifdef NXDK
+    DbgPrint("[settingsInit] Entered\n");
+#endif
+
     if (!gameConfigInit(isMapper, argc, argv)) {
+#ifdef NXDK
+        DbgPrint("[settingsInit] gameConfigInit failed!\n");
+#endif
         return false;
     }
 
+#ifdef NXDK
+    DbgPrint("[settingsInit] gameConfigInit succeeded, calling settingsFromConfig()\n");
+#endif
     settingsFromConfig();
+#ifdef NXDK
+    DbgPrint("[settingsInit] settingsFromConfig done\n");
+#endif
 
     return true;
 }
+
 
 bool settingsSave()
 {
@@ -40,9 +56,11 @@ bool settingsExit(bool shouldSave)
 
     return gameConfigExit(shouldSave);
 }
-
 static void settingsFromConfig()
 {
+#ifdef NXDK
+    DbgPrint("[settingsFromConfig] SYSTEM settings...\n");
+#endif
     settingsRead(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_EXECUTABLE_KEY, settings.system.executable);
     settingsRead(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_MASTER_DAT_KEY, settings.system.master_dat_path);
     settingsRead(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_MASTER_PATCHES_KEY, settings.system.master_patches_path);
@@ -58,6 +76,9 @@ static void settingsFromConfig()
     settingsRead(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_SPLASH_KEY, settings.system.splash);
     settingsRead(GAME_CONFIG_SYSTEM_KEY, GAME_CONFIG_FREE_SPACE_KEY, settings.system.free_space);
 
+#ifdef NXDK
+    DbgPrint("[settingsFromConfig] PREFERENCES settings...\n");
+#endif
     settingsRead(GAME_CONFIG_PREFERENCES_KEY, GAME_CONFIG_GAME_DIFFICULTY_KEY, settings.preferences.game_difficulty);
     settingsRead(GAME_CONFIG_PREFERENCES_KEY, GAME_CONFIG_COMBAT_DIFFICULTY_KEY, settings.preferences.combat_difficulty);
     settingsRead(GAME_CONFIG_PREFERENCES_KEY, GAME_CONFIG_VIOLENCE_LEVEL_KEY, settings.preferences.violence_level);
@@ -77,6 +98,9 @@ static void settingsFromConfig()
     settingsRead(GAME_CONFIG_PREFERENCES_KEY, GAME_CONFIG_MOUSE_SENSITIVITY_KEY, settings.preferences.mouse_sensitivity);
     settingsRead(GAME_CONFIG_PREFERENCES_KEY, GAME_CONFIG_RUNNING_BURNING_GUY_KEY, settings.preferences.running_burning_guy);
 
+#ifdef NXDK
+    DbgPrint("[settingsFromConfig] SOUND settings...\n");
+#endif
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_INITIALIZE_KEY, settings.sound.initialize);
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_DEBUG_KEY, settings.sound.debug);
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_DEBUG_SFXC_KEY, settings.sound.debug_sfxc);
@@ -95,12 +119,18 @@ static void settingsFromConfig()
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_PATH1_KEY, settings.sound.music_path1);
     settingsRead(GAME_CONFIG_SOUND_KEY, GAME_CONFIG_MUSIC_PATH2_KEY, settings.sound.music_path2);
 
+#ifdef NXDK
+    DbgPrint("[settingsFromConfig] DEBUG settings...\n");
+#endif
     settingsRead(GAME_CONFIG_DEBUG_KEY, GAME_CONFIG_MODE_KEY, settings.debug.mode);
     settingsRead(GAME_CONFIG_DEBUG_KEY, GAME_CONFIG_SHOW_TILE_NUM_KEY, settings.debug.show_tile_num);
     settingsRead(GAME_CONFIG_DEBUG_KEY, GAME_CONFIG_SHOW_SCRIPT_MESSAGES_KEY, settings.debug.show_script_messages);
     settingsRead(GAME_CONFIG_DEBUG_KEY, GAME_CONFIG_SHOW_LOAD_INFO_KEY, settings.debug.show_load_info);
     settingsRead(GAME_CONFIG_DEBUG_KEY, GAME_CONFIG_OUTPUT_MAP_DATA_INFO_KEY, settings.debug.output_map_data_info);
 
+#ifdef NXDK
+    DbgPrint("[settingsFromConfig] MAPPER settings...\n");
+#endif
     settingsRead(GAME_CONFIG_MAPPER_KEY, GAME_CONFIG_OVERRIDE_LIBRARIAN_KEY, settings.mapper.override_librarian);
     settingsRead(GAME_CONFIG_MAPPER_KEY, GAME_CONFIG_LIBRARIAN_KEY, settings.mapper.librarian);
     settingsRead(GAME_CONFIG_MAPPER_KEY, GAME_CONFIG_USE_ART_NOT_PROTOS_KEY, settings.mapper.user_art_not_protos);
@@ -113,7 +143,12 @@ static void settingsFromConfig()
     settingsRead(GAME_CONFIG_MAPPER_KEY, GAME_CONFIG_RUN_MAPPER_AS_GAME_KEY, settings.mapper.run_mapper_as_game);
     settingsRead(GAME_CONFIG_MAPPER_KEY, GAME_CONFIG_DEFAULT_F8_AS_GAME_KEY, settings.mapper.default_f8_as_game);
     settingsRead(GAME_CONFIG_MAPPER_KEY, GAME_CONFIG_SORT_SCRIPT_LIST_KEY, settings.mapper.sort_script_list);
+
+#ifdef NXDK
+    DbgPrint("[settingsFromConfig] Done\n");
+#endif
 }
+
 
 static void settingsToConfig()
 {

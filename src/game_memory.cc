@@ -1,5 +1,5 @@
 #include "game_memory.h"
-
+#include "xboxkrnl/xboxkrnl.h"
 #include "memory.h"
 #include "memory_manager.h"
 
@@ -9,13 +9,15 @@ static void* gameMemoryMalloc(size_t size);
 static void* gameMemoryRealloc(void* ptr, size_t newSize);
 static void gameMemoryFree(void* ptr);
 
-// 0x44B250
 int gameMemoryInit()
 {
+    DbgPrint("[gameMemoryInit] Setting memory manager procs\n");
     memoryManagerSetProcs(gameMemoryMalloc, gameMemoryRealloc, gameMemoryFree);
+    DbgPrint("[gameMemoryInit] memoryManagerSetProcs succeeded\n");
 
     return 0;
 }
+
 
 // 0x44B294
 static void* gameMemoryMalloc(size_t size)

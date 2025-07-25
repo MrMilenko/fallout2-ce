@@ -1,3 +1,17 @@
+# Xbox/NXDK Version
+
+Some build functions borrowed from Justy's fallout1-ce Xbox port [here](https://github.com/jroc-hb/fallout1-ce-xbox)
+
+This branch is absolutely trashed, its got DbgPrint's everywhere and may not boot at all when compile.
+
+Can be compiled using the same instructions from Justy's fallout1-ce.
+
+Build may fail if I didnt fix the additional files yet (sorry wanted the code up on github)
+
+## Config\Install
+
+Copy f2_res.ini, fallout2.cfg, ddraw.ini, master.dat, and critter.dat to E:\Games\Fallout2\ along with the data folder.
+
 # Fallout 2 Community Edition
 
 Fallout 2 Community Edition is a fully working re-implementation of Fallout 2, with the same original gameplay, engine bugfixes, and some quality of life improvements, that works (mostly) hassle-free on multiple platforms.

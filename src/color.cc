@@ -1,5 +1,7 @@
 #include "color.h"
-
+#ifdef NXDK
+#include <xboxkrnl/xboxkrnl.h>
+#endif
 #include <math.h>
 #include <string.h>
 
@@ -108,7 +110,6 @@ void colorPaletteFadeBetween(unsigned char* oldPalette, unsigned char* newPalett
                 gColorPaletteTransitionCallback();
             }
         }
-
         _setSystemPalette(palette);
         renderPresent();
         sharedFpsLimiter.throttle();
@@ -293,36 +294,46 @@ static void _setMixTableColor(int a1)
 // 0x4C78E4
 bool colorPaletteLoad(const char* path)
 {
+#ifdef NXDK
+    DbgPrint("[colorPaletteLoad] Requested palette: %s\n", path);
+#endif
+
     if (gColorFileNameMangler != nullptr) {
         path = gColorFileNameMangler(path);
+#ifdef NXDK
+        DbgPrint("[colorPaletteLoad] Mangled path: %s\n", path);
+#endif
     }
 
     File* stream = fileOpen(path, "rb");
     if (stream == nullptr) {
+#ifdef NXDK
+        DbgPrint("[colorPaletteLoad] Failed to open file: %s\n", path);
+#endif
         _errorStr = _aColor_cColorTa;
         return false;
     }
 
+#ifdef NXDK
+    DbgPrint("[colorPaletteLoad] Opened file successfully.\n");
+#endif
+
+    // Read 256 RGB triplets
     for (int index = 0; index < 256; index++) {
-        unsigned char r;
-        unsigned char g;
-        unsigned char b;
+        unsigned char r = 0, g = 0, b = 0;
 
-        // NOTE: Uninline.
-        fileRead(&r, sizeof(r), 1, stream);
-
-        // NOTE: Uninline.
-        fileRead(&g, sizeof(g), 1, stream);
-
-        // NOTE: Uninline.
-        fileRead(&b, sizeof(b), 1, stream);
+        if (fileRead(&r, sizeof(r), 1, stream) != 1 || fileRead(&g, sizeof(g), 1, stream) != 1 || fileRead(&b, sizeof(b), 1, stream) != 1) {
+#ifdef NXDK
+            DbgPrint("[colorPaletteLoad] Failed to read RGB triplet at index %d\n", index);
+#endif
+            fileClose(stream);
+            return false;
+        }
 
         if (r <= 0x3F && g <= 0x3F && b <= 0x3F) {
             _mappedColor[index] = 1;
         } else {
-            r = 0;
-            g = 0;
-            b = 0;
+            r = g = b = 0;
             _mappedColor[index] = 0;
         }
 
@@ -331,36 +342,60 @@ bool colorPaletteLoad(const char* path)
         _cmap[index * 3 + 2] = b;
     }
 
-    // NOTE: Uninline.
-    fileRead(_colorTable, 0x8000, 1, stream);
+    // Read 32KB color table
+    if (fileRead(_colorTable, 0x8000, 1, stream) != 1) {
+#ifdef NXDK
+        DbgPrint("[colorPaletteLoad] Failed to read _colorTable (32KB).\n");
+#endif
+        fileClose(stream);
+        return false;
+    }
 
-    unsigned int type;
-    // NOTE: Uninline.
-    fileRead(&type, sizeof(type), 1, stream);
+    // Attempt to read 4-byte palette format signature
+    unsigned int type = 0;
+    size_t typeRead = fileRead(&type, sizeof(type), 1, stream);
+    bool isNewc = (typeRead == 1 && type == 'NEWC');
 
-    // NOTE: The value is "NEWC". Original code uses cmp opcode, not stricmp,
-    // or comparing characters one-by-one.
-    if (type == 'NEWC') {
-        // NOTE: Uninline.
-        fileRead(intensityColorTable, sizeof(intensityColorTable), 1, stream);
-
-        // NOTE: Uninline.
-        fileRead(colorMixAddTable, sizeof(colorMixAddTable), 1, stream);
-
-        // NOTE: Uninline.
-        fileRead(colorMixMulTable, sizeof(colorMixMulTable), 1, stream);
+#ifdef NXDK
+    if (typeRead == 1) {
+        DbgPrint("[colorPaletteLoad] Palette type signature: 0x%08X (%c%c%c%c)\n",
+            type,
+            (type) & 0xFF,
+            (type >> 8) & 0xFF,
+            (type >> 16) & 0xFF,
+            (type >> 24) & 0xFF);
     } else {
-        _setIntensityTables();
+        DbgPrint("[colorPaletteLoad] No palette type signature found, assuming legacy format.\n");
+    }
+#endif
 
+    if (isNewc) {
+#ifdef NXDK
+        DbgPrint("[colorPaletteLoad] Detected NEWC palette format.\n");
+#endif
+        if (fileRead(intensityColorTable, sizeof(intensityColorTable), 1, stream) != 1 || fileRead(colorMixAddTable, sizeof(colorMixAddTable), 1, stream) != 1 || fileRead(colorMixMulTable, sizeof(colorMixMulTable), 1, stream) != 1) {
+#ifdef NXDK
+            DbgPrint("[colorPaletteLoad] Failed to read one or more NEWC tables.\n");
+#endif
+            fileClose(stream);
+            return false;
+        }
+    } else {
+#ifdef NXDK
+        DbgPrint("[colorPaletteLoad] Using legacy palette fallback.\n");
+#endif
+        _setIntensityTables();
         for (int index = 0; index < 256; index++) {
             _setMixTableColor(index);
         }
     }
 
     _rebuildColorBlendTables();
-
-    // NOTE: Uninline.
     fileClose(stream);
+
+#ifdef NXDK
+    DbgPrint("[colorPaletteLoad] Completed successfully.\n");
+#endif
 
     return true;
 }
