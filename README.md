@@ -1,5 +1,6 @@
 # Fallout 2: Community Edition — Xbox Port & Controller Support
 
+[![Build](https://github.com/MrMilenko/fallout2-ce/actions/workflows/ci-build.yml/badge.svg)](https://github.com/MrMilenko/fallout2-ce/actions/workflows/ci-build.yml)
 [![Latest Release](https://img.shields.io/github/v/release/MrMilenko/fallout2-ce)](https://github.com/MrMilenko/fallout2-ce/releases/latest)
 
 A fork of [Fallout 2 Community Edition](https://github.com/alexbatalov/fallout2-ce) adding:
@@ -11,6 +12,21 @@ A fork of [Fallout 2 Community Edition](https://github.com/alexbatalov/fallout2-
 The upstream project supports Windows, Linux, macOS, Android, and iOS via standard CMake. This fork builds on that with the Xbox target, Steam Deck AppImage, and exposes controller input on desktop platforms as well.
 
 Some Xbox build infrastructure was adapted from [Justy's fallout1-ce Xbox port](https://github.com/jroc-hb/fallout1-ce-xbox).
+
+---
+
+## A Note About This Project
+
+This Xbox port was originally created by [@MrMilenko](https://github.com/MrMilenko) — the platform compat layer, controller mapping, NXDK integration, audio/video init, and drive mounting are all hand-written work from building and testing on real Xbox hardware.
+
+During the process of cleaning up the git history and organizing the codebase for public release, [Claude Code](https://claude.com/claude-code) (Anthropic's AI coding assistant) was used to help with:
+
+- Reorganizing commits into a clean, reviewable merge from upstream
+- Building the CI/CD pipeline (GitHub Actions for all 5 platforms)
+- Fixing cross-platform build issues (Z_SOLO guards, CMake compat, etc.)
+- Writing setup scripts, packaging configs, and this README
+
+The game code itself — the Xbox port, controller input, platform abstractions — is human-written. The AI helped ship it cleanly.
 
 ---
 
@@ -173,7 +189,17 @@ Mouse cursor sensitivity and deadzone are tunable — see `sensitivity` and `dea
 
 ## Known Issues
 
+### All Platforms
 - Some actions that require a keyboard have no controller equivalent yet (e.g. naming characters, free text input)
+- Right stick is read but not mapped to any action (could be used for scrolling)
+
+### Xbox / xemu
+- **FMVs crash xemu** — they work on real hardware but crash the emulator. Set `disable_fmv=1` under `[debug]` in `fallout2.cfg` when testing in xemu. On real Xbox, set it to `0`.
+- **Black screen after character selection in xemu** — the game works on real hardware but hangs after starting a new game in xemu. This is an emulator limitation, not a code bug.
+- **Third character preset is blank** — the third preset character in character creation shows no portrait. Pre-existing bug, cause unknown.
+
+### macOS
+- FMVs play but the first frame may flash briefly before the movie starts (cosmetic)
 
 ---
 

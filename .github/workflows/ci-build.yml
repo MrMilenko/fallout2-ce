@@ -46,7 +46,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build
         run: |
-          cmake -B build -G Xcode -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY=''
+          cmake -B build -G Xcode -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY='' -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           cmake --build build --config RelWithDebInfo -j$(sysctl -n hw.logicalcpu)
       - name: Package
         run: |
@@ -63,23 +63,25 @@ jobs:
           retention-days: 7
 
   windows:
-    name: Windows
-    runs-on: windows-2019
+    name: Windows (cross-compile)
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Cache cmake build
-        uses: actions/cache@v4
-        with:
-          path: build
-          key: windows-x64-cmake-v1
-      - name: Configure
-        run: cmake -B build -G "Visual Studio 16 2019" -A x64
       - name: Build
-        run: cmake --build build --config Debug
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64 cmake
+          cmake -B build-win \
+            -DCMAKE_SYSTEM_NAME=Windows \
+            -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
+            -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
+            -DCMAKE_RC_COMPILER=x86_64-w64-mingw32-windres \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-win -j$(nproc)
       - name: Package
         run: |
           mkdir -p package
-          cp build/Debug/fallout2-ce.exe package/
+          cp build-win/fallout2-ce.exe package/
           cp fallout2-ce/ddraw.ini package/
           cp fallout2-ce/f2_res.ini package/
           cp fallout2-ce/fallout2.cfg package/
