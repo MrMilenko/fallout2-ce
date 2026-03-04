@@ -1,5 +1,7 @@
 #include "character_selector.h"
 
+#include "xbox_debug.h"
+
 #include <stdio.h>
 #include <string.h>
 
@@ -563,7 +565,7 @@ static bool characterSelectorWindowRefresh()
     premadeCharactersLocalizePath(path);
 
     if (_proto_dude_init(path) == -1) {
-        debugPrint("\n ** Error in dude init! **\n");
+        DbgPrint("\n ** Error in dude init! **\n");
         return false;
     }
 
