@@ -392,3 +392,19 @@ FodyWeavers.xsd
 /out
 /build
 CMakeUserPresets.json
+*.Identifier
+
+# Build outputs (all platforms)
+/build*/
+/fallout2-ce.iso
+/fallout2-ce/default.xbe
+
+# Retail game data (never commit these)
+fallout2-ce/*.dat
+fallout2-ce/*.DAT
+fallout2-ce/data/
+fallout2-ce/sound/
+fallout2-ce/cuts/
+
+# macOS
+.DS_Store

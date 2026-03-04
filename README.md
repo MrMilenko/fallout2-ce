@@ -1,119 +1,182 @@
-# Fallout 2 Community Edition
+# Fallout 2: Community Edition — Xbox Port & Controller Support
 
-Fallout 2 Community Edition is a fully working re-implementation of Fallout 2, with the same original gameplay, engine bugfixes, and some quality of life improvements, that works (mostly) hassle-free on multiple platforms.
+[![Latest Release](https://img.shields.io/github/v/release/MrMilenko/fallout2-ce)](https://github.com/MrMilenko/fallout2-ce/releases/latest)
 
-Popular Fallout 2 total conversion mods are partially supported. Original versions of Nevada and Sonora (that do not rely on extended features provided by Sfall) likely work, although there is no complete walkthrough confirmation yet. [Fallout 2 Restoration Project](https://github.com/BGforgeNet/Fallout2_Restoration_Project), [Fallout Et Tu](https://github.com/rotators/Fo1in2) and [Olympus 2207](https://olympus2207.com) are not yet supported. Other mods (particularly Resurrection and Yesterday) are not tested.
+A fork of [Fallout 2 Community Edition](https://github.com/alexbatalov/fallout2-ce) adding:
 
-There is also [Fallout Community Edition](https://github.com/alexbatalov/fallout1-ce).
+- **Original Xbox support** — built with [NXDK](https://github.com/XboxDev/nxdk) and SDL
+- **Steam Deck support** — packaged as an AppImage at 1280×800
+- **Controller support on all platforms** — SDL_GameController works on PC, Mac, Linux, Steam Deck, and Xbox with the same mapping
+
+The upstream project supports Windows, Linux, macOS, Android, and iOS via standard CMake. This fork builds on that with the Xbox target, Steam Deck AppImage, and exposes controller input on desktop platforms as well.
+
+Some Xbox build infrastructure was adapted from [Justy's fallout1-ce Xbox port](https://github.com/jroc-hb/fallout1-ce-xbox).
+
+---
+
+## Getting the Game Files
+
+You need `master.dat`, `critter.dat`, and the `data/` folder from a legitimate copy of Fallout 2 ([GOG](https://www.gog.com/game/fallout_2) · [Steam](https://store.steampowered.com/app/38410) · [Epic](https://store.epicgames.com/p/fallout-2)).
+
+Each release includes a setup script that copies the retail files for you:
+
+```sh
+# Linux / macOS / Steam Deck
+bash setup-game-data.sh <source> [output-dir]
+
+# Windows
+setup-game-data.bat <fallout2-install-directory> [output-dir]
+```
+
+Supported sources (shell script):
+- **Directory** — an existing Fallout 2 install folder
+- **`.exe`** — GOG/Steam offline installer (requires [`innoextract`](https://constexpr.org/innoextract/))
+- **`.dmg`** — GOG macOS installer (macOS only)
+- **`.sh`** — GOG Linux installer
+
+The script will never overwrite your existing config files (`ddraw.ini`, `f2_res.ini`, `fallout2.cfg`).
+
+---
 
 ## Installation
 
-You must own the game to play. Purchase your copy on [GOG](https://www.gog.com/game/fallout_2), [Epic Games](https://store.epicgames.com/p/fallout-2) or [Steam](https://store.steampowered.com/app/38410). Download latest [release](https://github.com/alexbatalov/fallout2-ce/releases) or build from source. You can also check latest [debug](https://github.com/alexbatalov/fallout2-ce/actions) build intended for testers.
-
 ### Windows
 
-Download and copy `fallout2-ce.exe` to your `Fallout2` folder. It serves as a drop-in replacement for `fallout2.exe`.
-
-### Linux
-
-- Use Windows installation as a base - it contains data assets needed to play. Copy `Fallout2` folder somewhere, for example `/home/john/Desktop/Fallout2`.
-
-- Alternatively you can extract the needed files from the GoG installer:
-
-```console
-$ sudo apt install innoextract
-$ innoextract ~/Downloads/setup_fallout2_2.1.0.18.exe -I app
-$ mv app Fallout2
-```
-
-- Download and copy `fallout2-ce` to this folder.
-
-- Install [SDL2](https://libsdl.org/download-2.0.php):
-
-```console
-$ sudo apt install libsdl2-2.0-0
-```
-
-- Run `./fallout2-ce`.
+1. Download `fallout2-ce-windows.zip` from the [latest release](https://github.com/MrMilenko/fallout2-ce/releases/latest) and unzip it
+2. Run `setup-game-data.bat "C:\GOG Games\Fallout 2"` (or wherever your copy is installed), or manually copy `master.dat`, `critter.dat`, and `data/` into the same folder as `fallout2-ce.exe`
+3. Run `fallout2-ce.exe`
 
 ### macOS
 
-> **NOTE**: macOS 10.11 (El Capitan) or higher is required. Runs natively on Intel-based Macs and Apple Silicon.
+1. Download `fallout2-ce-macos.zip` from the [latest release](https://github.com/MrMilenko/fallout2-ce/releases/latest) and unzip it
+2. Move the `.app` to Applications (or anywhere you like)
+3. Install game data to `~/Games/Fallout 2 CE/`:
+   ```sh
+   bash setup-game-data.sh ~/Downloads/fallout_2_2.0.0.4.dmg ~/Games/"Fallout 2 CE"
+   # or point it at a directory, .exe, or .sh installer
+   ```
+4. Launch the app — it automatically looks in `~/Games/Fallout 2 CE/` for game files
 
-- Use Windows installation as a base - it contains data assets needed to play. Copy `Fallout2` folder somewhere, for example `/Applications/Fallout2`.
+### Linux
 
-- Alternatively you can use Fallout 2 from Macplay/The Omni Group as a base - you need to extract game assets from the original bundle. Mount CD/DMG, right click `Fallout 2` -> `Show Package Contents`, navigate to `Contents/Resources`. Copy `GameData` folder somewhere, for example `/Applications/Fallout2`.
+1. Download `fallout2-ce-linux-x64.tar.gz` from the [latest release](https://github.com/MrMilenko/fallout2-ce/releases/latest) and extract it
+2. Run `bash setup-game-data.sh <source>` to copy game files next to the binary, or do it manually
+3. Run `./fallout2-ce`
 
-- Or if you're a Terminal user and have Homebrew installed you can extract the needed files from the GoG installer:
+### Steam Deck
 
-```console
-$ brew install innoextract
-$ innoextract ~/Downloads/setup_fallout2_2.1.0.18.exe -I app
-$ mv app /Applications/Fallout2
+1. Download `fallout2-ce-steam-deck.zip` from the [latest release](https://github.com/MrMilenko/fallout2-ce/releases/latest) and unzip it
+2. Switch to Desktop Mode. Run `bash setup-game-data.sh <source>` to copy game files into the same folder as the AppImage
+3. `chmod +x Fallout2-CE-SteamDeck-x86_64.AppImage` and run it — or add to Steam as a Non-Steam game
+4. The game defaults to 1280×800 for the Deck screen
+
+### Xbox
+
+Game files are split between the Xbox DVD drive (`D:\`) and the hard drive (`E:\`).
+
+#### On the DVD / ISO (`D:\`)
+
+Copy these files into the root of the ISO (the `fallout2-ce/` directory in this repo is packed into the ISO automatically):
+
+| File | Description |
+|---|---|
+| `default.xbe` | Game executable (built automatically) |
+| `master.dat` | Main game data archive |
+| `critter.dat` | Critter/NPC data archive |
+| `f2_res.ini` | Resolution and display settings |
+| `fallout2.cfg` | Main game configuration |
+| `ddraw.ini` | Sfall configuration |
+| `TitleImage.xbx` | Xbox dashboard thumbnail |
+
+#### On the Hard Drive (`E:\UDATA\FALLOUT2\`)
+
+Copy the `data\` folder from your Fallout 2 installation here. Saves will also be written here.
+
+#### Running from HDD (softmod/chip)
+
+`D:\` is always the directory containing `default.xbe`. Copy `default.xbe` and all game data to any folder on `E:\` (e.g. `E:\Games\Fallout2\`) and `D:\` maps there automatically — no config changes needed.
+
+---
+
+## Building
+
+### Desktop (Windows / Linux / macOS)
+
+Standard CMake build — same as upstream:
+
+```sh
+cmake -B build -S .
+cmake --build build
 ```
 
-- Download and copy `fallout2-ce.app` to this folder.
+Place `master.dat`, `critter.dat`, and the `data/` folder from your Fallout 2 installation next to the binary (Linux/Windows) or in `~/Games/Fallout 2 CE/` (macOS).
 
-- Run `fallout2-ce.app`.
+### Xbox (NXDK)
 
-### Android
+Set up the NXDK toolchain, then:
 
-> **NOTE**: Fallout 2 was designed with mouse in mind. There are many controls that require precise cursor positioning, which is not possible with fingers. Current control scheme resembles trackpad usage:
-- One finger moves mouse cursor around.
-- Tap one finger for left mouse click.
-- Tap two fingers for right mouse click (switches mouse cursor mode).
-- Move two fingers to scroll current view (map view, worldmap view, inventory scrollers).
+```sh
+export NXDK_DIR=/path/to/nxdk
+export PATH=$NXDK_DIR/bin:$PATH
+nxdk-cmake -B build-nxdk -S . -DNXDK_DIR=$NXDK_DIR
+cmake --build build-nxdk
+```
 
-> **NOTE**: From Android standpoint release and debug builds are different apps. Both apps require their own copy of game assets and have their own savegames. This is intentional. As a gamer just stick with release version and check for updates.
+This produces `fallout2-ce.iso`, which can be burned to a disc or loaded in [xemu](https://xemu.app).
 
-- Use Windows installation as a base - it contains data assets needed to play. Copy `Fallout2` folder to your device, for example to `Downloads`. You need `master.dat`, `critter.dat`, `patch000.dat`, and `data` folder. Watch for file names - keep (or make) them lowercased (see [Configuration](#configuration)).
+> **Note:** Several NXDK libraries must be built once before the first build (`libc++.lib`, `libSDL2.lib`). See the NXDK documentation for details.
 
-- Download `fallout2-ce.apk` and copy it to your device. Open it with file explorer, follow instructions (install from unknown source).
-
-- When you run the game for the first time it will immediately present file picker. Select the folder from the first step. Wait until this data is copied. A loading dialog will appear, just wait for about 30 seconds. If you're installing total conversion mod or localized version with a large number of unpacked resources in `data` folder it can take up to 20 minutes. Once copied, the game will start automatically.
-
-### iOS
-
-> **NOTE**: See Android note on controls.
-
-- Download `fallout2-ce.ipa`. Use sideloading applications ([AltStore](https://altstore.io/) or [Sideloadly](https://sideloadly.io/)) to install it to your device. Alternatively you can always build from source with your own signing certificate.
-
-- Run the game once. You'll see error message saying "Couldn't find/load text fonts". This step is needed for iOS to expose the game via File Sharing feature.
-
-- Use Finder (macOS Catalina and later) or iTunes (Windows and macOS Mojave or earlier) to copy `master.dat`, `critter.dat`, `patch000.dat`, and `data` folder to "Fallout 2" app ([how-to](https://support.apple.com/HT210598)). Watch for file names - keep (or make) them lowercased (see [Configuration](#configuration)).
+---
 
 ## Configuration
 
-The main configuration file is `fallout2.cfg`. There are several important settings you might need to adjust for your installation. Depending on your Fallout distribution main game assets `master.dat`, `critter.dat`, `patch000.dat`, and `data` folder might be either all lowercased, or all uppercased. You can either update `master_dat`, `critter_dat`, `master_patches` and `critter_patches` settings to match your file names, or rename files to match entries in your `fallout2.cfg`.
+Each release ships with default config files. The setup script will never overwrite them if they already exist.
 
-The `sound` folder (with `music` folder inside) might be located either in `data` folder, or be in the Fallout folder. Update `music_path1` setting to match your hierarchy, usually it's `data/sound/music/` or `sound/music/`. Make sure it matches your path exactly (so it might be `SOUND/MUSIC/` if you've installed Fallout from CD). Music files themselves (with `ACM` extension) should be all uppercased, regardless of `sound` and `music` folders.
+| File | Purpose |
+|---|---|
+| `fallout2.cfg` | Game settings (data paths, sound, language) |
+| `f2_res.ini` | Resolution and display settings |
+| `ddraw.ini` | Sfall configuration (engine tweaks) |
 
-The second configuration file is `f2_res.ini`. Use it to change game window size and enable/disable fullscreen mode.
+### Xbox-specific notes
 
-```ini
-[MAIN]
-SCR_WIDTH=1280
-SCR_HEIGHT=720
-WINDOWED=1
-```
+The Xbox build uses different data paths (`D:\` for DVD, `E:\UDATA\FALLOUT2\` for HDD). The CI build handles this automatically — you don't need to change anything.
 
-Recommendations:
-- **Desktops**: Use any size you see fit.
-- **Tablets**: Set these values to logical resolution of your device, for example iPad Pro 11 is 1668x2388 (pixels), but it's logical resolution is 834x1194 (points).
-- **Mobile phones**: Set height to 480, calculate width according to your device screen (aspect) ratio, for example Samsung S21 is 20:9 device, so the width should be 480 * 20 / 9 = 1067.
+The original Xbox outputs 480p (640×480) by default. Higher resolutions may work depending on your TV and cable, but 640×480 is the safe default.
 
-In time this stuff will receive in-game interface, right now you have to do it manually.
+---
 
-The third configuration file is `ddraw.ini` (part of Sfall). There are dozens of options that adjust or override engine behaviour and gameplay mechanics. This file is intended for modders and advanced users. Currently only a small subset of these settings are actually implemented.
+## Controller Layout
 
-## Contributing
+The Xbox controller mapping also applies when using a gamepad on desktop platforms.
 
-Integrating Sfall goodies is the top priority. Quality of life updates are OK too. Please no large scale refactorings at this time as we need to reconcile changes from Reference Edition, which will make this process slow and error-prone. In any case open up an issue with your suggestion or to notify other people that something is being worked on.
+| Button | Action |
+|---|---|
+| **Left stick** | Move mouse cursor |
+| **A** | Left mouse click |
+| **B** | Right mouse click (cycle cursor mode) |
+| **X** | Inventory |
+| **Y** | Pip-Boy |
+| **Back** | Character sheet |
+| **Start** | Options / ESC |
+| **D-Pad Up / Down** | Scroll |
+| **D-Pad Left** | Skilldex |
+| **D-Pad Right** | Quick Save |
+| **White (LB)** | End Turn |
+| **Black (RB)** | End Combat |
+| **L3 (left stick click)** | Center camera on player |
+| **R3 (right stick click)** | Activate combat mode |
 
-### Intergrating Sfall
+Mouse cursor sensitivity and deadzone are tunable — see `sensitivity` and `deadzone` in `src/dinput.cc`.
 
-There are literally hundreds if not thousands of fixes and features in sfall. I guess not all of them are needed in Community Edition, but for the sake of compatibility with big mods out there, let's integrate them all.
+---
+
+## Known Issues
+
+- Some actions that require a keyboard have no controller equivalent yet (e.g. naming characters, free text input)
+
+---
 
 ## License
 
-The source code is this repository is available under the [Sustainable Use License](LICENSE.md).
+Source code in this repository is available under the [Sustainable Use License](LICENSE.md).
