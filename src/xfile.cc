@@ -5,16 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef NXDK
-#include <cstring>
-static char* getcwd(char* buf, size_t size) {
-    strncpy(buf, "D:", size);
-    return buf;
-}
-static int chdir(const char* path) {
-    return 0;
-}
-#elif defined(_WIN32)
+#ifdef _WIN32
 #include <direct.h>
 #else
 #include <unistd.h>
@@ -23,7 +14,30 @@ static int chdir(const char* path) {
 #include "file_find.h"
 
 namespace fallout {
+#ifdef NXDK
+#include <cstring>
 
+extern "C" {
+
+// Dummy getcwd for NXDK — returns a fake working directory
+char* getcwd(char* buf, size_t size)
+{
+    if (!buf || size < 3) {
+        return nullptr;
+    }
+    std::strncpy(buf, "D:", size - 1);
+    buf[size - 1] = '\0';
+    return buf;
+}
+
+// Dummy chdir for NXDK — always "succeeds"
+int chdir(const char* path)
+{
+    // You can add debug prints or checks here if needed
+    return 0;
+}
+}
+#endif
 typedef enum XFileEnumerationEntryType {
     XFILE_ENUMERATION_ENTRY_TYPE_FILE,
     XFILE_ENUMERATION_ENTRY_TYPE_DIRECTORY,
@@ -62,11 +76,7 @@ int xfileClose(XFile* stream)
         rc = dfileClose(stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
-#ifndef Z_SOLO
-        rc = gzclose(stream->gzfile);
-#else
-        rc = 0;
-#endif
+        // rc = gzclose(stream->gzfile);
         break;
     default:
         rc = fclose(stream->file);
@@ -114,31 +124,36 @@ XFile* xfileOpen(const char* filePath, const char* mode)
         // open [filePath] from appropriate xbase.
         XBase* curr = gXbaseHead;
         while (curr != nullptr) {
+
             if (curr->isDbase) {
-                // Attempt to open dfile stream from dbase.
+
                 stream->dfile = dfileOpen(curr->dbase, filePath, mode);
+
                 if (stream->dfile != nullptr) {
+
                     stream->type = XFILE_TYPE_DFILE;
                     snprintf(path, sizeof(path), "%s", filePath);
                     break;
+                } else {
+                    //DbgPrint("[xfileOpen] dfileOpen failed for %s in xbase %s\n", filePath, curr->path);
                 }
             } else {
-                // Build path relative to directory-based xbase.
                 snprintf(path, sizeof(path), "%s\\%s", curr->path, filePath);
 
-                // Attempt to open plain stream.
                 stream->file = compat_fopen(path, mode);
+
                 if (stream->file != nullptr) {
                     stream->type = XFILE_TYPE_FILE;
                     break;
+                } else {
+                    //DbgPrint("[xfileOpen] FAIL: compat_fopen could not open %s\n", path);
                 }
             }
+
             curr = curr->next;
         }
 
         if (stream->file == nullptr) {
-            // File was not opened during the loop above. Attempt to open file
-            // relative to the current working directory.
             stream->file = compat_fopen(filePath, mode);
             if (stream->file == nullptr) {
                 free(stream);
@@ -161,11 +176,7 @@ XFile* xfileOpen(const char* filePath, const char* mode)
             fclose(stream->file);
 
             stream->type = XFILE_TYPE_GZFILE;
-#ifndef Z_SOLO
-            stream->gzfile = compat_gzopen(path, mode);
-#else
-            stream->gzfile = NULL;
-#endif
+            stream->gzfile = NULL; // gzopen(stream->file, mode);
         } else {
             // File is not gzipped.
             rewind(stream->file);
@@ -205,11 +216,7 @@ int xfilePrintFormattedArgs(XFile* stream, const char* format, va_list args)
         rc = dfilePrintFormattedArgs(stream->dfile, format, args);
         break;
     case XFILE_TYPE_GZFILE:
-#ifndef Z_SOLO
-        rc = gzvprintf(stream->gzfile, format, args);
-#else
-        rc = -1;
-#endif
+        // rc = gzvprintf(stream->gzfile, format, args);
         break;
     default:
         rc = vfprintf(stream->file, format, args);
@@ -231,11 +238,7 @@ int xfileReadChar(XFile* stream)
         ch = dfileReadChar(stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
-#ifndef Z_SOLO
-        ch = gzgetc(stream->gzfile);
-#else
-        ch = -1;
-#endif
+        // ch = gzgetc(stream->gzfile);
         break;
     default:
         ch = fgetc(stream->file);
@@ -248,30 +251,45 @@ int xfileReadChar(XFile* stream)
 // 0x4DF280
 char* xfileReadString(char* string, int size, XFile* stream)
 {
-    assert(string); // "s", "xfile.c", 375
-    assert(size); // "n", "xfile.c", 376
-    assert(stream); // "stream", "xfile.c", 377
+    if (!string || size <= 0 || !stream) {
+#ifdef NXDK
+        DbgPrint("[xfileReadString] Invalid parameters: string=%p, size=%d, stream=%p\n", string, size, stream);
+#endif
+        return nullptr;
+    }
 
-    char* result;
+    char* result = nullptr;
 
     switch (stream->type) {
     case XFILE_TYPE_DFILE:
+#ifdef NXDK
+        DbgPrint("[xfileReadString] Reading from DFILE stream\n");
+#endif
         result = dfileReadString(string, size, stream->dfile);
         break;
+
     case XFILE_TYPE_GZFILE:
-#ifndef Z_SOLO
-        result = compat_gzgets(stream->gzfile, string, size);
-#else
-        result = NULL;
+#ifdef NXDK
+        DbgPrint("[xfileReadString] GZFILE stream encountered (unsupported)\n");
 #endif
+        result = nullptr; // Stubbed: not used in your build
         break;
+
     default:
+#ifdef NXDK
+        DbgPrint("[xfileReadString] Reading from standard FILE stream\n");
+#endif
         result = compat_fgets(string, size, stream->file);
         break;
     }
 
+#ifdef NXDK
+    DbgPrint("[xfileReadString] Result: %s\n", result ? result : "null");
+#endif
+
     return result;
 }
+
 
 // 0x4DF320
 int xfileWriteChar(int ch, XFile* stream)
@@ -285,11 +303,7 @@ int xfileWriteChar(int ch, XFile* stream)
         rc = dfileWriteChar(ch, stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
-#ifndef Z_SOLO
-        rc = gzputc(stream->gzfile, ch);
-#else
-        rc = -1;
-#endif
+        // rc = gzputc(stream->gzfile, ch);
         break;
     default:
         rc = fputc(ch, stream->file);
@@ -312,11 +326,7 @@ int xfileWriteString(const char* string, XFile* stream)
         rc = dfileWriteString(string, stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
-#ifndef Z_SOLO
-        rc = gzputs(stream->gzfile, string);
-#else
-        rc = -1;
-#endif
+        // rc = gzputs(stream->gzfile, string);
         break;
     default:
         rc = fputs(string, stream->file);
@@ -339,11 +349,12 @@ size_t xfileRead(void* ptr, size_t size, size_t count, XFile* stream)
         elementsRead = dfileRead(ptr, size, count, stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
-#ifndef Z_SOLO
-        elementsRead = gzread(stream->gzfile, ptr, size * count);
-#else
-        elementsRead = 0;
-#endif
+        // FIXME: There is a bug in the return value. Both [dfileRead] and
+        // [fread] returns number of elements read, but [gzwrite] have no such
+        // concept, it works with bytes, and returns number of bytes read.
+        // Depending on the [size] and [count] parameters this function can
+        // return wrong result.
+        // elementsRead = gzread(stream->gzfile, ptr, size * count);
         break;
     default:
         elementsRead = fread(ptr, size, count, stream->file);
@@ -366,11 +377,12 @@ size_t xfileWrite(const void* ptr, size_t size, size_t count, XFile* stream)
         elementsWritten = dfileWrite(ptr, size, count, stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
-#ifndef Z_SOLO
-        elementsWritten = gzwrite(stream->gzfile, ptr, size * count);
-#else
-        elementsWritten = 0;
-#endif
+        // FIXME: There is a bug in the return value. [fwrite] returns number
+        // of elements written (while [dfileWrite] does not support writing at
+        // all), but [gzwrite] have no such concept, it works with bytes, and
+        // returns number of bytes written. Depending on the [size] and [count]
+        // parameters this function can return wrong result.
+        // elementsWritten = gzwrite(stream->gzfile, ptr, size * count);
         break;
     default:
         elementsWritten = fwrite(ptr, size, count, stream->file);
@@ -392,11 +404,7 @@ int xfileSeek(XFile* stream, long offset, int origin)
         result = dfileSeek(stream->dfile, offset, origin);
         break;
     case XFILE_TYPE_GZFILE:
-#ifndef Z_SOLO
-        result = gzseek(stream->gzfile, offset, origin);
-#else
-        result = -1;
-#endif
+        // result = gzseek(stream->gzfile, offset, origin);
         break;
     default:
         result = fseek(stream->file, offset, origin);
@@ -418,11 +426,7 @@ long xfileTell(XFile* stream)
         pos = dfileTell(stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
-#ifndef Z_SOLO
-        pos = gztell(stream->gzfile);
-#else
-        pos = -1;
-#endif
+        // pos = gztell(stream->gzfile);
         break;
     default:
         pos = ftell(stream->file);
@@ -442,9 +446,7 @@ void xfileRewind(XFile* stream)
         dfileRewind(stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
-#ifndef Z_SOLO
-        gzrewind(stream->gzfile);
-#endif
+        // gzrewind(stream->gzfile);
         break;
     default:
         rewind(stream->file);
@@ -464,11 +466,7 @@ int xfileEof(XFile* stream)
         rc = dfileEof(stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
-#ifndef Z_SOLO
-        rc = gzeof(stream->gzfile);
-#else
-        rc = 1;
-#endif
+        // rc = gzeof(stream->gzfile);
         break;
     default:
         rc = feof(stream->file);
@@ -490,7 +488,7 @@ long xfileGetSize(XFile* stream)
         fileSize = dfileGetSize(stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
-        fileSize = 0;
+        // fileSize = 0;
         break;
     default:
         fileSize = getFileSize(stream->file);
@@ -529,8 +527,7 @@ bool xbaseOpen(const char* path)
 {
     assert(path); // "path", "xfile.c", 747
 
-    // Register atexit handler so that underlying dbase (if any) can be
-    // gracefully closed.
+    // Register atexit handler so that underlying dbase (if any) can be gracefully closed.
     if (!gXbaseExitHandlerRegistered) {
         atexit(xbaseExitHandler);
         gXbaseExitHandlerRegistered = true;
@@ -581,7 +578,8 @@ bool xbaseOpen(const char* path)
 
     char workingDirectory[COMPAT_MAX_PATH];
     if (getcwd(workingDirectory, COMPAT_MAX_PATH) == nullptr) {
-        // FIXME: Leaking xbase and path.
+        free(xbase->path);
+        free(xbase);
         return false;
     }
 
@@ -593,12 +591,12 @@ bool xbaseOpen(const char* path)
     }
 
     if (xbaseMakeDirectory(path) != 0) {
-        // FIXME: Leaking xbase and path.
+        free(xbase->path);
+        free(xbase);
         return false;
     }
 
     chdir(workingDirectory);
-
     xbase->next = gXbaseHead;
     gXbaseHead = xbase;
 

@@ -609,9 +609,16 @@ static void op_atof(Program* program)
 {
     const char* string = programStackPopString(program);
 #ifdef NXDK
-    // NXDK libc doesn't provide atof, use strtod instead
-    char* endptr = nullptr;
-    programStackPushFloat(program, static_cast<float>(strtod(string, &endptr)));
+    // NXDK's strtod/atof assert on certain inputs, parse manually
+    double val = 0.0;
+    bool negative = false;
+    const char* p = string;
+    while (*p == ' ' || *p == '\t') p++;
+    if (*p == '-') { negative = true; p++; } else if (*p == '+') { p++; }
+    while (*p >= '0' && *p <= '9') { val = val * 10.0 + (*p - '0'); p++; }
+    if (*p == '.') { p++; double frac = 0.1; while (*p >= '0' && *p <= '9') { val += (*p - '0') * frac; frac *= 0.1; p++; } }
+    if (negative) val = -val;
+    programStackPushFloat(program, static_cast<float>(val));
 #else
     programStackPushFloat(program, static_cast<float>(atof(string)));
 #endif

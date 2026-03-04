@@ -6,10 +6,6 @@
 
 #include <zlib.h>
 
-#ifdef Z_SOLO
-typedef void* gzFile;
-#endif
-
 #include "dfile.h"
 #include "platform_compat.h"
 
@@ -44,7 +40,11 @@ typedef struct XFile {
     union {
         FILE* file;
         DFile* dfile;
+#ifndef NXDK
         gzFile gzfile;
+#else
+        void* gzfile; // gz not supported on Xbox; Z_SOLO removes gzFile typedef
+#endif
     };
 } XFile;
 

@@ -9,6 +9,7 @@
 #include "cycle.h"
 #include "debug.h"
 #include "game.h"
+#include "game_config.h"
 #include "game_mouse.h"
 #include "game_sound.h"
 #include "input.h"
@@ -141,6 +142,16 @@ int gameMoviesSave(File* stream)
 // 0x44E690
 int gameMoviePlay(int movie, int flags)
 {
+#ifdef NXDK
+    // FMVs crash xemu. On Xbox, check config to allow disabling them.
+    int disableFmv = 0;
+    configGetInt(&gGameConfig, "debug", "disable_fmv", &disableFmv);
+    if (disableFmv) {
+        DbgPrint("\ngameMoviePlay() - FMVs disabled via config, skipping %s\n", gMovieFileNames[movie]);
+        return 0;
+    }
+#endif
+
     gGameMovieIsPlaying = true;
 
     const char* movieFileName = gMovieFileNames[movie];
