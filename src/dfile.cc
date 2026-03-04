@@ -37,6 +37,18 @@ namespace fallout {
 // Specifies that [DFile] has unget compressed character.
 #define DFILE_HAS_COMPRESSED_UNGETC (0x10)
 
+#ifdef NXDK
+static voidpf zlib_alloc(voidpf opaque, uInt items, uInt size)
+{
+    return malloc(items * size);
+}
+
+static void zlib_free(voidpf opaque, voidpf address)
+{
+    free(address);
+}
+#endif
+
 static int dbaseFindEntryByFilePath(const void* a1, const void* a2);
 static DFile* dfileOpenInternal(DBase* dbase, const char* filename, const char* mode, DFile* a4);
 static int dfileReadCharInternal(DFile* stream);
@@ -567,8 +579,13 @@ int dfileSeek(DFile* stream, long offset, int origin)
         return 1;
     }
 
+#ifdef NXDK
+    stream->decompressionStream->zalloc = zlib_alloc;
+    stream->decompressionStream->zfree = zlib_free;
+#else
     stream->decompressionStream->zalloc = Z_NULL;
     stream->decompressionStream->zfree = Z_NULL;
+#endif
     stream->decompressionStream->opaque = Z_NULL;
     stream->decompressionStream->next_in = stream->decompressionBuffer;
     stream->decompressionStream->avail_in = 0;
@@ -696,8 +713,13 @@ static DFile* dfileOpenInternal(DBase* dbase, const char* filePath, const char* 
             }
         }
 
+#ifdef NXDK
+        dfile->decompressionStream->zalloc = zlib_alloc;
+        dfile->decompressionStream->zfree = zlib_free;
+#else
         dfile->decompressionStream->zalloc = Z_NULL;
         dfile->decompressionStream->zfree = Z_NULL;
+#endif
         dfile->decompressionStream->opaque = Z_NULL;
         dfile->decompressionStream->next_in = dfile->decompressionBuffer;
         dfile->decompressionStream->avail_in = 0;

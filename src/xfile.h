@@ -1,9 +1,14 @@
 #ifndef XFILE_H
 #define XFILE_H
 
+#include <stdarg.h>
 #include <stdio.h>
 
 #include <zlib.h>
+
+#ifdef Z_SOLO
+typedef void* gzFile;
+#endif
 
 #include "dfile.h"
 #include "platform_compat.h"

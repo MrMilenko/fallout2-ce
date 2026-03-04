@@ -5,7 +5,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _WIN32
+#ifdef NXDK
+#include <cstring>
+static char* getcwd(char* buf, size_t size) {
+    strncpy(buf, "D:", size);
+    return buf;
+}
+static int chdir(const char* path) {
+    return 0;
+}
+#elif defined(_WIN32)
 #include <direct.h>
 #else
 #include <unistd.h>
@@ -53,7 +62,11 @@ int xfileClose(XFile* stream)
         rc = dfileClose(stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
+#ifndef Z_SOLO
         rc = gzclose(stream->gzfile);
+#else
+        rc = 0;
+#endif
         break;
     default:
         rc = fclose(stream->file);
@@ -148,7 +161,11 @@ XFile* xfileOpen(const char* filePath, const char* mode)
             fclose(stream->file);
 
             stream->type = XFILE_TYPE_GZFILE;
+#ifndef Z_SOLO
             stream->gzfile = compat_gzopen(path, mode);
+#else
+            stream->gzfile = NULL;
+#endif
         } else {
             // File is not gzipped.
             rewind(stream->file);
@@ -234,7 +251,11 @@ char* xfileReadString(char* string, int size, XFile* stream)
         result = dfileReadString(string, size, stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
+#ifndef Z_SOLO
         result = compat_gzgets(stream->gzfile, string, size);
+#else
+        result = NULL;
+#endif
         break;
     default:
         result = compat_fgets(string, size, stream->file);
@@ -302,12 +323,11 @@ size_t xfileRead(void* ptr, size_t size, size_t count, XFile* stream)
         elementsRead = dfileRead(ptr, size, count, stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
-        // FIXME: There is a bug in the return value. Both [dfileRead] and
-        // [fread] returns number of elements read, but [gzwrite] have no such
-        // concept, it works with bytes, and returns number of bytes read.
-        // Depending on the [size] and [count] parameters this function can
-        // return wrong result.
+#ifndef Z_SOLO
         elementsRead = gzread(stream->gzfile, ptr, size * count);
+#else
+        elementsRead = 0;
+#endif
         break;
     default:
         elementsRead = fread(ptr, size, count, stream->file);
@@ -330,12 +350,11 @@ size_t xfileWrite(const void* ptr, size_t size, size_t count, XFile* stream)
         elementsWritten = dfileWrite(ptr, size, count, stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
-        // FIXME: There is a bug in the return value. [fwrite] returns number
-        // of elements written (while [dfileWrite] does not support writing at
-        // all), but [gzwrite] have no such concept, it works with bytes, and
-        // returns number of bytes written. Depending on the [size] and [count]
-        // parameters this function can return wrong result.
+#ifndef Z_SOLO
         elementsWritten = gzwrite(stream->gzfile, ptr, size * count);
+#else
+        elementsWritten = 0;
+#endif
         break;
     default:
         elementsWritten = fwrite(ptr, size, count, stream->file);
@@ -357,7 +376,11 @@ int xfileSeek(XFile* stream, long offset, int origin)
         result = dfileSeek(stream->dfile, offset, origin);
         break;
     case XFILE_TYPE_GZFILE:
+#ifndef Z_SOLO
         result = gzseek(stream->gzfile, offset, origin);
+#else
+        result = -1;
+#endif
         break;
     default:
         result = fseek(stream->file, offset, origin);
@@ -379,7 +402,11 @@ long xfileTell(XFile* stream)
         pos = dfileTell(stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
+#ifndef Z_SOLO
         pos = gztell(stream->gzfile);
+#else
+        pos = -1;
+#endif
         break;
     default:
         pos = ftell(stream->file);
@@ -399,7 +426,9 @@ void xfileRewind(XFile* stream)
         dfileRewind(stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
+#ifndef Z_SOLO
         gzrewind(stream->gzfile);
+#endif
         break;
     default:
         rewind(stream->file);
@@ -419,7 +448,11 @@ int xfileEof(XFile* stream)
         rc = dfileEof(stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
+#ifndef Z_SOLO
         rc = gzeof(stream->gzfile);
+#else
+        rc = 1;
+#endif
         break;
     default:
         rc = feof(stream->file);
