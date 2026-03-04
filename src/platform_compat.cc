@@ -29,7 +29,7 @@
 
 #ifdef _WIN32
 #ifndef NXDK
-#include <timeapi.h>
+#include <mmsystem.h>
 #endif
 #else
 #include <chrono>
