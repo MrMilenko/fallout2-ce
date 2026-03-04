@@ -5,6 +5,26 @@
 
 namespace fallout {
 
+#ifdef NXDK
+typedef struct ControllerState {
+    float analogX;
+    float analogY;
+    float rightStickX;  // Right stick X
+    float rightStickY;  // Right stick Y
+    bool buttonA;
+    bool buttonB;
+} ControllerState;
+
+typedef struct ControllerKeyMapping {
+    SDL_GameControllerButton button;
+    SDL_Scancode scancode;
+} ControllerKeyMapping;
+
+// Default controller button to keyboard mappings
+extern const ControllerKeyMapping CONTROLLER_KEY_MAPPINGS[];
+extern const int CONTROLLER_KEY_MAPPING_COUNT;
+#endif
+
 typedef struct MouseData {
     int x;
     int y;
@@ -35,6 +55,9 @@ void keyboardDeviceFree();
 void handleMouseEvent(SDL_Event* event);
 void handleTouchEvent(SDL_Event* event);
 
+#ifdef NXDK
+bool dinput_get_controller_state(ControllerState* state);
+#endif
 } // namespace fallout
 
 #endif /* DINPUT_H */
