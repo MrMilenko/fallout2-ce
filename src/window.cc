@@ -1,7 +1,5 @@
 #include "window.h"
-#ifdef NXDK
 #include "xbox_debug.h"
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

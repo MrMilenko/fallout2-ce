@@ -5,7 +5,6 @@
 
 namespace fallout {
 
-#ifdef NXDK
 typedef struct ControllerState {
     float analogX;
     float analogY;
@@ -23,7 +22,6 @@ typedef struct ControllerKeyMapping {
 // Default controller button to keyboard mappings
 extern const ControllerKeyMapping CONTROLLER_KEY_MAPPINGS[];
 extern const int CONTROLLER_KEY_MAPPING_COUNT;
-#endif
 
 typedef struct MouseData {
     int x;
@@ -55,9 +53,7 @@ void keyboardDeviceFree();
 void handleMouseEvent(SDL_Event* event);
 void handleTouchEvent(SDL_Event* event);
 
-#ifdef NXDK
 bool dinput_get_controller_state(ControllerState* state);
-#endif
 } // namespace fallout
 
 #endif /* DINPUT_H */

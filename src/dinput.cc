@@ -10,14 +10,11 @@ static int gMouseWheelDeltaY = 0;
 // 0x4E0400
 bool directInputInit()
 {
-    // NXDK: Basic controller support FIXME
-#ifdef NXDK
     SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
     if (SDL_Init(SDL_INIT_GAMECONTROLLER) < 0) {
-        SDL_Log("SDL_Init: %s\n", SDL_GetError());
-        return false;
-    };
-#endif
+        SDL_Log("SDL_Init(GAMECONTROLLER): %s\n", SDL_GetError());
+        // Non-fatal on non-Xbox — continue without controller
+    }
     
     if (SDL_InitSubSystem(SDL_INIT_EVENTS) != 0) {
         return false;
@@ -62,11 +59,9 @@ bool mouseDeviceUnacquire()
 bool mouseDeviceGetData(MouseData* mouseState)
 {
 #ifdef NXDK
-    // Handle both real mouse and controller input
+    // Xbox: controller only (no real mouse)
     ControllerState controllerState;
     if (dinput_get_controller_state(&controllerState)) {
-        // Convert analog input to mouse movement
-        // Scale the movement - adjust these values to taste
         const float sensitivity = 15.0f;
         mouseState->x = (int)(controllerState.analogX * sensitivity);
         mouseState->y = (int)(controllerState.analogY * sensitivity);
@@ -78,15 +73,12 @@ bool mouseDeviceGetData(MouseData* mouseState)
     }
     return false;
 #else
-    // CE: This function is sometimes called outside loops calling `get_input`
-    // and subsequently `GNW95_process_message`, so mouse events might not be
-    // handled by SDL yet.
-    //
-    // TODO: Move mouse events processing into `GNW95_process_message` and
-    // update mouse position manually.
+    // PC/macOS: get mouse movement (relative) and button state
     SDL_PumpEvents();
 
-    Uint32 buttons = SDL_GetRelativeMouseState(&(mouseState->x), &(mouseState->y));
+    Uint32 relButtons = SDL_GetRelativeMouseState(&(mouseState->x), &(mouseState->y));
+    Uint32 absButtons = SDL_GetMouseState(nullptr, nullptr);
+    Uint32 buttons = relButtons | absButtons;
     mouseState->buttons[0] = (buttons & SDL_BUTTON(SDL_BUTTON_LEFT)) != 0;
     mouseState->buttons[1] = (buttons & SDL_BUTTON(SDL_BUTTON_RIGHT)) != 0;
     mouseState->wheelX = gMouseWheelDeltaX;
@@ -94,6 +86,16 @@ bool mouseDeviceGetData(MouseData* mouseState)
 
     gMouseWheelDeltaX = 0;
     gMouseWheelDeltaY = 0;
+
+    // Layer controller on top — adds to mouse, doesn't replace it
+    ControllerState controllerState;
+    if (dinput_get_controller_state(&controllerState)) {
+        const float sensitivity = 15.0f;
+        mouseState->x += (int)(controllerState.analogX * sensitivity);
+        mouseState->y += (int)(controllerState.analogY * sensitivity);
+        mouseState->buttons[0] |= controllerState.buttonA;
+        mouseState->buttons[1] |= controllerState.buttonB;
+    }
 
     return true;
 #endif
@@ -118,7 +120,6 @@ bool keyboardDeviceReset()
     return true;
 }
 
-#ifdef NXDK
 // Add tracking of previous button states
 static bool previousButtonStates[SDL_CONTROLLER_BUTTON_MAX] = { false };
 
@@ -153,30 +154,27 @@ const int CONTROLLER_KEY_MAPPING_COUNT = sizeof(CONTROLLER_KEY_MAPPINGS) / sizeo
 bool keyboardDeviceGetData(KeyboardData* keyboardData)
 {
     SDL_GameController* controller = SDL_GameControllerOpen(0);
-    if (controller == NULL) {
-        return false;
-    }
+    if (controller != NULL) {
+        // Check all mapped buttons
+        for (int i = 0; i < CONTROLLER_KEY_MAPPING_COUNT; i++) {
+            const ControllerKeyMapping* mapping = &CONTROLLER_KEY_MAPPINGS[i];
+            bool currentState = SDL_GameControllerGetButton(controller, mapping->button) != 0;
 
-    // Check all mapped buttons
-    for (int i = 0; i < CONTROLLER_KEY_MAPPING_COUNT; i++) {
-        const ControllerKeyMapping* mapping = &CONTROLLER_KEY_MAPPINGS[i];
-        bool currentState = SDL_GameControllerGetButton(controller, mapping->button) != 0;
-        
-        // Only trigger on state changes
-        if (currentState != previousButtonStates[mapping->button]) {
-            keyboardData->key = mapping->scancode;
-            keyboardData->down = currentState ? 1 : 0;
-            
-            // Store new state
-            previousButtonStates[mapping->button] = currentState;
-            
-            return true;
+            // Only trigger on state changes
+            if (currentState != previousButtonStates[mapping->button]) {
+                keyboardData->key = mapping->scancode;
+                keyboardData->down = currentState ? 1 : 0;
+
+                // Store new state
+                previousButtonStates[mapping->button] = currentState;
+
+                return true;
+            }
         }
     }
 
-    return false;
+    return true;
 }
-#endif
 
 // 0x4E070C
 bool mouseDeviceInit()
@@ -216,7 +214,6 @@ void handleMouseEvent(SDL_Event* event)
     }
 }
 
-#ifdef NXDK
 bool dinput_get_controller_state(ControllerState* state)
 {
     SDL_GameController* controller = SDL_GameControllerOpen(0);
@@ -246,6 +243,5 @@ bool dinput_get_controller_state(ControllerState* state)
 
     return true;
 }
-#endif
 
 } // namespace fallout

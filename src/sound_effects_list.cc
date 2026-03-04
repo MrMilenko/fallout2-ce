@@ -1,7 +1,5 @@
 #include "sound_effects_list.h"
-#ifdef NXDK
 #include "xbox_debug.h"
-#endif
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,7 +1,5 @@
 #include "window_manager.h"
-#ifdef NXDK
 #include "xbox_debug.h"
-#endif
 #include <string.h>
 
 #include <algorithm>

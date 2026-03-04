@@ -1,7 +1,5 @@
 #include "settings.h"
-#ifdef NXDK
 #include "xbox_debug.h"
-#endif
 namespace fallout {
 
 static void settingsFromConfig();

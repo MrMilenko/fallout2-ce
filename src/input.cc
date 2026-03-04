@@ -1,9 +1,7 @@
 #include "input.h"
 
 #include <SDL.h>
-#ifdef NXDK
 #include "xbox_debug.h"
-#endif
 #include "audio_engine.h"
 #include "color.h"
 #include "delay.h"

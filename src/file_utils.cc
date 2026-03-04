@@ -2,9 +2,7 @@
 // of regular __usercall.
 
 #include "file_utils.h"
-#ifdef NXDK
 #include "xbox_debug.h"
-#endif
 #include <stdio.h>
 #include <string.h>
 #include <zlib.h>

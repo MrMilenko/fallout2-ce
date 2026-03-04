@@ -407,7 +407,7 @@ int screenGetVisibleHeight()
     return screenGetHeight() - windowBottomMargin;
 }
 
-static bool createRenderer(int width, int height)
+bool createRenderer(int width, int height)
 {
     gSdlRenderer = SDL_CreateRenderer(gSdlWindow, -1, 0);
     if (gSdlRenderer == nullptr) {
@@ -435,7 +435,7 @@ static bool createRenderer(int width, int height)
     return true;
 }
 
-static void destroyRenderer()
+void destroyRenderer()
 {
     if (gSdlTextureSurface != nullptr) {
         SDL_FreeSurface(gSdlTextureSurface);

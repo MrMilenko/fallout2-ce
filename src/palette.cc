@@ -1,7 +1,5 @@
 #include "palette.h"
-#ifdef NXDK
 #include "xbox_debug.h"
-#endif
 #include <string.h>
 
 #include "color.h"

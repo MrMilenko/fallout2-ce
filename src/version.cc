@@ -15,7 +15,17 @@ void versionGetVersion(char* dest, size_t size)
             versionString = nullptr;
         }
     }
-    snprintf(dest, size, (versionString != nullptr ? versionString : "FALLOUT II %d.%02d-Xbox-V0.1-Alpha"), VERSION_MAJOR, VERSION_MINOR);
+#ifdef NXDK
+    snprintf(dest, size, (versionString != nullptr ? versionString : "FALLOUT II %d.%02d-Milenko-Xbox"), VERSION_MAJOR, VERSION_MINOR);
+#elif __APPLE__
+    snprintf(dest, size, (versionString != nullptr ? versionString : "FALLOUT II %d.%02d-Milenko-macOS"), VERSION_MAJOR, VERSION_MINOR);
+#elif __linux__
+    snprintf(dest, size, (versionString != nullptr ? versionString : "FALLOUT II %d.%02d-Milenko-Linux"), VERSION_MAJOR, VERSION_MINOR);
+#elif _WIN32
+    snprintf(dest, size, (versionString != nullptr ? versionString : "FALLOUT II %d.%02d-Milenko-Windows"), VERSION_MAJOR, VERSION_MINOR);
+#else
+    snprintf(dest, size, (versionString != nullptr ? versionString : "FALLOUT II %d.%02d-Milenko"), VERSION_MAJOR, VERSION_MINOR);
+#endif
 }
 
 } // namespace fallout

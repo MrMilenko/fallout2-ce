@@ -1,11 +1,10 @@
 #include "art.h"
 
+#include "xbox_debug.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef NXDK
-#include "xbox_debug.h"
-#endif
 #include "animation.h"
 #include "debug.h"
 #include "draw.h"

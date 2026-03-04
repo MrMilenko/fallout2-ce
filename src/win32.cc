@@ -1,5 +1,7 @@
 #include "win32.h"
 
+#include "xbox_debug.h"
+
 #include <stdlib.h>
 
 #include <SDL.h>
@@ -26,7 +28,8 @@
 #include <nxdk/path.h>
 #include <string.h>
 #include <windows.h>
-#include "xbox_debug.h"
+#endif
+
 typedef struct {
     int width;
     int height;
@@ -37,15 +40,11 @@ typedef struct {
 namespace fallout {
 extern SDL_Window* gSdlWindow;
 extern SDL_Surface* gSdlSurface;
-} // namespace fallout
-
-#endif
-
-namespace fallout {
-#ifdef NXDK
 bool createRenderer(int width, int height);
 void destroyRenderer();
-#endif
+} // namespace fallout
+
+namespace fallout {
 // 0x51E444
 bool gProgramIsActive = false;
 

@@ -1,5 +1,7 @@
 #include "platform_compat.h"
 
+#include "xbox_debug.h"
+
 #include <string.h>
 
 #ifdef _WIN32
@@ -20,6 +22,7 @@
 #include <stdlib.h>
 #else
 #include <dirent.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #endif
@@ -303,7 +306,7 @@ FILE* compat_fopen(const char* path, const char* mode)
 }
 
 
-/*
+#ifndef Z_SOLO
 gzFile compat_gzopen(const char* path, const char* mode)
 {
     char nativePath[COMPAT_MAX_PATH];
@@ -312,7 +315,7 @@ gzFile compat_gzopen(const char* path, const char* mode)
     compat_resolve_path(nativePath);
     return gzopen(nativePath, mode);
 }
-*/
+#endif
 char* compat_fgets(char* buffer, int maxCount, FILE* stream)
 {
     buffer = fgets(buffer, maxCount, stream);
@@ -327,7 +330,7 @@ char* compat_fgets(char* buffer, int maxCount, FILE* stream)
 
     return buffer;
 }
-/*
+#ifndef Z_SOLO
 char* compat_gzgets(gzFile stream, char* buffer, int maxCount)
 {
     buffer = gzgets(stream, buffer, maxCount);
@@ -342,7 +345,7 @@ char* compat_gzgets(gzFile stream, char* buffer, int maxCount)
 
     return buffer;
 }
-*/
+#endif
 int compat_remove(const char* path)
 {
     char nativePath[COMPAT_MAX_PATH];

@@ -2,9 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#ifdef NXDK
 #include "xbox_debug.h"
-#endif
 #include "art.h"
 #include "character_editor.h"
 #include "combat.h"

@@ -1,5 +1,7 @@
 #include "xfile.h"
 
+#include "xbox_debug.h"
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
