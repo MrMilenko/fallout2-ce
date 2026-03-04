@@ -1,3 +1,6 @@
+set(XBE_TITLE fallout2-ce)
+set(XBOX_ISO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/fallout2-ce)
+
 cmake_minimum_required(VERSION 3.13)
 
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
@@ -15,6 +18,11 @@ if(APPLE)
 endif()
 
 project(${EXECUTABLE_NAME})
+
+if(NXDK)
+    include(FindPkgConfig)
+    add_definitions(-DXBOX -DNXDK)
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
@@ -358,10 +366,19 @@ if(APPLE)
     set(MACOSX_BUNDLE_BUNDLE_VERSION "1.3.0")
 endif()
 
+# Third-party: fpattern
 add_subdirectory("third_party/fpattern")
 target_link_libraries(${EXECUTABLE_NAME} fpattern::fpattern)
 
-if(FALLOUT_VENDORED)
+# Third-party: adecode (audio decoder)
+add_subdirectory("third_party/adecode")
+target_link_libraries(${EXECUTABLE_NAME} adecode::adecode)
+
+# Third-party: zlib and SDL2
+if(NXDK)
+    pkg_search_module(ZLIB REQUIRED zlib)
+    pkg_search_module(SDL2 REQUIRED sdl2)
+elseif(FALLOUT_VENDORED)
     add_subdirectory("third_party/zlib")
     add_subdirectory("third_party/sdl2")
 else()
@@ -371,6 +388,11 @@ endif()
 
 target_link_libraries(${EXECUTABLE_NAME} ${ZLIB_LIBRARIES})
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${ZLIB_INCLUDE_DIRS})
+
+if(NXDK)
+    # Propagate Z_SOLO from pkg-config so zconf.h skips sys/types.h (absent on NXDK)
+    target_compile_options(${EXECUTABLE_NAME} PRIVATE ${ZLIB_CFLAGS_OTHER} ${SDL2_CFLAGS_OTHER})
+endif()
 
 target_link_libraries(${EXECUTABLE_NAME} ${SDL2_LIBRARIES})
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${SDL2_INCLUDE_DIRS})
@@ -392,4 +414,28 @@ if(APPLE)
     endif()
 
     include(CPack)
+endif()
+
+if(NXDK)
+    # Post-build: convert EXE to XBE
+    add_custom_target(cxbe_convert ALL
+        VERBATIM COMMAND "${CMAKE_COMMAND}" -E env
+            ./tools/cxbe/cxbe
+            -OUT:${XBOX_ISO_DIR}/default.xbe
+            -TITLE:${XBE_TITLE}
+            ${CMAKE_CURRENT_BINARY_DIR}/${XBE_TITLE}.exe
+        WORKING_DIRECTORY ${NXDK_DIR}
+        COMMENT "CXBE Conversion: [EXE -> XBE]"
+    )
+    add_dependencies(cxbe_convert ${EXECUTABLE_NAME})
+
+    # Post-build: pack XBE + game data into ISO
+    add_custom_target(xbe_iso ALL
+        VERBATIM COMMAND "${CMAKE_COMMAND}" -E env
+            ${NXDK_DIR}/tools/extract-xiso/build/extract-xiso
+            -c ${XBOX_ISO_DIR}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMENT "ISO Creation: [XBE -> XISO]"
+    )
+    add_dependencies(xbe_iso cxbe_convert)
 endif()
