@@ -19,9 +19,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libsdl2-dev zlib1g-dev
-          cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DFALLOUT_VENDORED=OFF
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DFALLOUT_VENDORED=OFF
           cmake --build build -j$(nproc)
-      - name: Pack + Upload
+      - name: Package
         run: |
           mkdir -p package
           cp build/fallout2-ce package/
@@ -29,6 +29,8 @@ jobs:
           cp fallout2-ce/f2_res.ini package/
           cp fallout2-ce/fallout2.cfg package/
           cp tools/setup-game-data.sh package/
+      - name: Upload to release
+        run: |
           cd package
           tar -czvf ../fallout2-ce-linux-x64.tar.gz .
           cd ..
@@ -45,7 +47,7 @@ jobs:
         run: |
           cmake -B build -G Xcode -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY='' -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           cmake --build build --config RelWithDebInfo -j$(sysctl -n hw.logicalcpu)
-      - name: Pack + Upload
+      - name: Package
         run: |
           mkdir -p package
           cp -R "build/RelWithDebInfo/Fallout II Community Edition.app" package/
@@ -53,6 +55,8 @@ jobs:
           cp fallout2-ce/f2_res.ini package/
           cp fallout2-ce/fallout2.cfg package/
           cp tools/setup-game-data.sh package/
+      - name: Upload to release
+        run: |
           cd package
           zip -r ../fallout2-ce-macos.zip .
           cd ..
@@ -76,7 +80,7 @@ jobs:
             -DCMAKE_RC_COMPILER=x86_64-w64-mingw32-windres \
             -DCMAKE_BUILD_TYPE=Release
           cmake --build build-win -j$(nproc)
-      - name: Pack + Upload
+      - name: Package
         run: |
           mkdir -p package
           cp build-win/fallout2-ce.exe package/
@@ -84,6 +88,8 @@ jobs:
           cp fallout2-ce/f2_res.ini package/
           cp fallout2-ce/fallout2.cfg package/
           cp tools/setup-game-data.bat package/
+      - name: Upload to release
+        run: |
           cd package
           zip ../fallout2-ce-windows.zip *
           cd ..
@@ -115,7 +121,7 @@ jobs:
           cp fallout2-ce/fallout2-xbox.cfg fallout2-ce/fallout2.cfg
           nxdk-cmake -B build-nxdk -S . -DNXDK_DIR=$NXDK_DIR
           cmake --build build-nxdk -j$(nproc)
-      - name: Upload
+      - name: Upload to release
         run: |
           zip -j fallout2-ce-xbox.zip \
             fallout2-ce.iso \
@@ -143,9 +149,9 @@ jobs:
             https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           chmod +x linuxdeploy.AppImage
           mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
-          cp build-deck/fallout2-ce          AppDir/usr/bin/fallout2-ce
+          cp build-deck/fallout2-ce AppDir/usr/bin/fallout2-ce
           cp tools/steamdeck/fallout2-ce.desktop AppDir/usr/share/applications/
-          cp tools/steamdeck/icon.png        AppDir/usr/share/icons/hicolor/256x256/apps/fallout2-ce.png
+          cp tools/steamdeck/icon.png            AppDir/usr/share/icons/hicolor/256x256/apps/fallout2-ce.png
           APPIMAGE_EXTRACT_AND_RUN=1 OUTPUT=Fallout2-CE-SteamDeck-x86_64.AppImage \
             ./linuxdeploy.AppImage --appdir AppDir --output appimage
           mkdir -p package
@@ -154,9 +160,11 @@ jobs:
           cp fallout2-ce/ddraw.ini package/
           cp fallout2-ce/fallout2.cfg package/
           cp tools/setup-game-data.sh package/
+      - name: Upload to release
+        run: |
           cd package
           zip ../fallout2-ce-steam-deck.zip *
-      - name: Upload
-        run: gh release upload "${{ github.event.release.tag_name }}" fallout2-ce-steam-deck.zip --clobber
+          cd ..
+          gh release upload "${{ github.event.release.tag_name }}" fallout2-ce-steam-deck.zip --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
