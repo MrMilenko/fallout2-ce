@@ -1,4 +1,5 @@
 #include "dinput.h"
+#include "xbox_debug.h"
 
 namespace fallout {
 
@@ -120,8 +121,8 @@ bool keyboardDeviceReset()
     return true;
 }
 
-// Add tracking of previous button states
-static bool previousButtonStates[SDL_CONTROLLER_BUTTON_MAX] = { false };
+// Tracking of previous button states (used by input.cc too)
+bool previousButtonStates[SDL_CONTROLLER_BUTTON_MAX] = { false };
 
 // Define default button mappings
 const ControllerKeyMapping CONTROLLER_KEY_MAPPINGS[] = {
@@ -151,25 +152,48 @@ const ControllerKeyMapping CONTROLLER_KEY_MAPPINGS[] = {
 const int CONTROLLER_KEY_MAPPING_COUNT = sizeof(CONTROLLER_KEY_MAPPINGS) / sizeof(CONTROLLER_KEY_MAPPINGS[0]);
 
 // 0x4E0650
+static bool kbdControllerLogged = false;
+
 bool keyboardDeviceGetData(KeyboardData* keyboardData)
 {
     SDL_GameController* controller = SDL_GameControllerOpen(0);
-    if (controller != NULL) {
-        // Check all mapped buttons
-        for (int i = 0; i < CONTROLLER_KEY_MAPPING_COUNT; i++) {
-            const ControllerKeyMapping* mapping = &CONTROLLER_KEY_MAPPINGS[i];
-            bool currentState = SDL_GameControllerGetButton(controller, mapping->button) != 0;
-
-            // Only trigger on state changes
-            if (currentState != previousButtonStates[mapping->button]) {
-                keyboardData->key = mapping->scancode;
-                keyboardData->down = currentState ? 1 : 0;
-
-                // Store new state
-                previousButtonStates[mapping->button] = currentState;
-
-                return true;
+    if (controller == NULL) {
+        if (!kbdControllerLogged) {
+            DbgPrint("keyboardDeviceGetData: SDL_GameControllerOpen(0) returned NULL\n");
+            DbgPrint("  SDL_NumJoysticks: %d\n", SDL_NumJoysticks());
+            for (int j = 0; j < SDL_NumJoysticks(); j++) {
+                DbgPrint("  Joystick %d: '%s' isGameController=%d\n",
+                    j, SDL_JoystickNameForIndex(j),
+                    SDL_IsGameController(j));
             }
+            kbdControllerLogged = true;
+        }
+        return true;
+    }
+
+    if (!kbdControllerLogged) {
+        DbgPrint("keyboardDeviceGetData: controller found: '%s'\n",
+            SDL_GameControllerName(controller));
+        kbdControllerLogged = true;
+    }
+
+    // Check all mapped buttons
+    for (int i = 0; i < CONTROLLER_KEY_MAPPING_COUNT; i++) {
+        const ControllerKeyMapping* mapping = &CONTROLLER_KEY_MAPPINGS[i];
+        bool currentState = SDL_GameControllerGetButton(controller, mapping->button) != 0;
+
+        // Only trigger on state changes
+        if (currentState != previousButtonStates[mapping->button]) {
+            keyboardData->key = mapping->scancode;
+            keyboardData->down = currentState ? 1 : 0;
+
+            // Store new state
+            previousButtonStates[mapping->button] = currentState;
+
+            DbgPrint("keyboardDeviceGetData: button %d -> scancode %d (down=%d)\n",
+                mapping->button, mapping->scancode, keyboardData->down);
+
+            return true;
         }
     }
 

@@ -22,6 +22,7 @@ typedef struct ControllerKeyMapping {
 // Default controller button to keyboard mappings
 extern const ControllerKeyMapping CONTROLLER_KEY_MAPPINGS[];
 extern const int CONTROLLER_KEY_MAPPING_COUNT;
+extern bool previousButtonStates[SDL_CONTROLLER_BUTTON_MAX];
 
 typedef struct MouseData {
     int x;

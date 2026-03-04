@@ -5,8 +5,11 @@
 #include <SDL.h>
 
 #include "color.h"
+#include "config.h"
 #include "db.h"
 #include "debug.h"
+#include "game_config.h"
+#include "xbox_debug.h"
 #include "draw.h"
 #include "geometry.h"
 #include "input.h"
@@ -771,6 +774,15 @@ int _movieRun(int win, char* filePath)
         return 1;
     }
 
+#ifdef NXDK
+    int disableFmv = 0;
+    configGetInt(&gGameConfig, "debug", "disable_fmv", &disableFmv);
+    if (disableFmv) {
+        DbgPrint("_movieRun() - FMVs disabled via config, skipping %s\n", filePath);
+        return 0;
+    }
+#endif
+
     _movieX = 0;
     _movieY = 0;
     _movieOffset = 0;
@@ -786,6 +798,15 @@ int _movieRunRect(int win, char* filePath, int a3, int a4, int a5, int a6)
     if (_running) {
         return 1;
     }
+
+#ifdef NXDK
+    int disableFmvRect = 0;
+    configGetInt(&gGameConfig, "debug", "disable_fmv", &disableFmvRect);
+    if (disableFmvRect) {
+        DbgPrint("_movieRunRect() - FMVs disabled via config, skipping %s\n", filePath);
+        return 0;
+    }
+#endif
 
     _movieX = a3;
     _movieY = a4;

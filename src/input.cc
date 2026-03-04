@@ -998,6 +998,24 @@ void _GNW95_process_message()
 
     touch_process_gesture();
 
+    // Poll controller buttons and inject as keyboard events
+    if (!keyboardIsDisabled()) {
+        SDL_GameController* controller = SDL_GameControllerOpen(0);
+        if (controller != NULL) {
+            for (int i = 0; i < CONTROLLER_KEY_MAPPING_COUNT; i++) {
+                const ControllerKeyMapping* mapping = &CONTROLLER_KEY_MAPPINGS[i];
+                bool currentState = SDL_GameControllerGetButton(controller, mapping->button) != 0;
+
+                if (currentState != previousButtonStates[mapping->button]) {
+                    keyboardData.key = mapping->scancode;
+                    keyboardData.down = currentState ? 1 : 0;
+                    _GNW95_process_key(&keyboardData);
+                    previousButtonStates[mapping->button] = currentState;
+                }
+            }
+        }
+    }
+
     if (gProgramIsActive && !keyboardIsDisabled()) {
         // NOTE: Uninline
         int tick = getTicks();

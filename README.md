@@ -1,4 +1,4 @@
-# Fallout 2: Community Edition — Xbox Port & Controller Support
+# Fallout 2: Community Edition — Xbox Port
 
 [![Build](https://github.com/MrMilenko/fallout2-ce/actions/workflows/ci-build.yml/badge.svg)](https://github.com/MrMilenko/fallout2-ce/actions/workflows/ci-build.yml)
 [![Latest Release](https://img.shields.io/github/v/release/MrMilenko/fallout2-ce)](https://github.com/MrMilenko/fallout2-ce/releases/latest)
@@ -6,12 +6,21 @@
 A fork of [Fallout 2 Community Edition](https://github.com/alexbatalov/fallout2-ce) adding:
 
 - **Original Xbox support** — built with [NXDK](https://github.com/XboxDev/nxdk) and SDL
-- **Steam Deck support** — packaged as an AppImage at 1280×800
-- **Controller support on all platforms** — SDL_GameController works on PC, Mac, Linux, Steam Deck, and Xbox with the same mapping
-
-The upstream project supports Windows, Linux, macOS, Android, and iOS via standard CMake. This fork builds on that with the Xbox target, Steam Deck AppImage, and exposes controller input on desktop platforms as well.
+- **Steam Deck support** — packaged as an AppImage at 1280x800
+- **Basic controller support** — left stick moves the cursor, face buttons for common actions. Fallout 2 is a mouse-driven game so this is limited.
 
 Some Xbox build infrastructure was adapted from [Justy's fallout1-ce Xbox port](https://github.com/jroc-hb/fallout1-ce-xbox).
+
+## Status
+
+Working:
+- FMVs (on real hardware)
+- Audio
+- Save system
+- Basic joystick/controller input
+
+TODO:
+- Quite a bit! See [Known Issues](#known-issues).
 
 ---
 
@@ -84,33 +93,31 @@ The script will never overwrite your existing config files (`ddraw.ini`, `f2_res
 1. Download `fallout2-ce-steam-deck.zip` from the [latest release](https://github.com/MrMilenko/fallout2-ce/releases/latest) and unzip it
 2. Switch to Desktop Mode. Run `bash setup-game-data.sh <source>` to copy game files into the same folder as the AppImage
 3. `chmod +x Fallout2-CE-SteamDeck-x86_64.AppImage` and run it — or add to Steam as a Non-Steam game
-4. The game defaults to 1280×800 for the Deck screen
+4. The game defaults to 1280x800 for the Deck screen
 
 ### Xbox
 
-Game files are split between the Xbox DVD drive (`D:\`) and the hard drive (`E:\`).
+Copy `f2_res.ini`, `fallout2.cfg`, `ddraw.ini`, `master.dat`, `critter.dat`, and `default.xbe` along with the `data` and `sound` folders to your Xbox.
 
-#### On the DVD / ISO (`D:\`)
+#### Running from disc / ISO
 
-Copy these files into the root of the ISO (the `fallout2-ce/` directory in this repo is packed into the ISO automatically):
-
-| File | Description |
-|---|---|
-| `default.xbe` | Game executable (built automatically) |
-| `master.dat` | Main game data archive |
-| `critter.dat` | Critter/NPC data archive |
-| `f2_res.ini` | Resolution and display settings |
-| `fallout2.cfg` | Main game configuration |
-| `ddraw.ini` | Sfall configuration |
-| `TitleImage.xbx` | Xbox dashboard thumbnail |
-
-#### On the Hard Drive (`E:\UDATA\FALLOUT2\`)
-
-Copy the `data\` folder from your Fallout 2 installation here. Saves will also be written here.
+The `fallout2-ce/` directory in this repo is packed into the ISO automatically by the build. `master.dat` and `critter.dat` go on the DVD (`D:\`), while the `data\` folder goes on the hard drive at `E:\UDATA\FALLOUT2\data`.
 
 #### Running from HDD (softmod/chip)
 
-`D:\` is always the directory containing `default.xbe`. Copy `default.xbe` and all game data to any folder on `E:\` (e.g. `E:\Games\Fallout2\`) and `D:\` maps there automatically — no config changes needed.
+Copy everything to a folder on `E:\` (e.g. `E:\Games\Fallout2\`). `D:\` automatically maps to the directory containing `default.xbe` — no config changes needed.
+
+#### Edge Cases
+
+You may need to extract a few files from `master.dat` using [DAT Explorer](https://fallout.fandom.com/wiki/Resources:DAT_Explorer_Guide):
+
+- `pro_crit.msg`
+- `pro_item.msg`
+- `pro_scen.msg`
+- `pro_tile.msg`
+- `pro_wall.msg`
+
+Place them in `E:\UDATA\FALLOUT2\data\text\english\game\`. This bug has appeared in some builds intermittently.
 
 ---
 
@@ -156,50 +163,52 @@ Each release ships with default config files. The setup script will never overwr
 
 ### Xbox-specific notes
 
-The Xbox build uses different data paths (`D:\` for DVD, `E:\UDATA\FALLOUT2\` for HDD). The CI build handles this automatically — you don't need to change anything.
+The Xbox build uses different data paths (`D:\` for DVD, `E:\UDATA\FALLOUT2\` for HDD). The CI build handles this automatically.
 
-The original Xbox outputs 480p (640×480) by default. Higher resolutions may work depending on your TV and cable, but 640×480 is the safe default.
+The original Xbox outputs 480p (640x480) by default. Higher resolutions may work depending on your TV and cable, but 640x480 is the safe default.
 
 ---
 
-## Controller Layout
+## Controller Support
 
-The Xbox controller mapping also applies when using a gamepad on desktop platforms.
+Basic joystick support is available on all platforms. Fallout 2 was designed for mouse and keyboard, so controller support is limited — many actions (naming characters, free text input, precise cursor work) still require a keyboard.
 
 | Button | Action |
 |---|---|
 | **Left stick** | Move mouse cursor |
 | **A** | Left mouse click |
-| **B** | Right mouse click (cycle cursor mode) |
+| **B** | Right mouse click |
 | **X** | Inventory |
 | **Y** | Pip-Boy |
 | **Back** | Character sheet |
-| **Start** | Options / ESC |
+| **Start** | ESC |
 | **D-Pad Up / Down** | Scroll |
 | **D-Pad Left** | Skilldex |
 | **D-Pad Right** | Quick Save |
 | **White (LB)** | End Turn |
 | **Black (RB)** | End Combat |
-| **L3 (left stick click)** | Center camera on player |
-| **R3 (right stick click)** | Activate combat mode |
 
-Mouse cursor sensitivity and deadzone are tunable — see `sensitivity` and `deadzone` in `src/dinput.cc`.
+Sensitivity and deadzone are hardcoded in `src/dinput.cc`.
 
 ---
 
 ## Known Issues
 
-### All Platforms
-- Some actions that require a keyboard have no controller equivalent yet (e.g. naming characters, free text input)
-- Right stick is read but not mapped to any action (could be used for scrolling)
+### Xbox
+- Various graphical glitches, some paths may need correcting
+- Third character preset in character creation is blank (no portrait) — pre-existing, cause unknown
+- Some scripts may terminate early (e.g. Christa is selectable but shows no info)
 
 ### Xbox / xemu
-- **FMVs crash xemu** — they work on real hardware but crash the emulator. Set `disable_fmv=1` under `[debug]` in `fallout2.cfg` when testing in xemu. On real Xbox, set it to `0`.
-- **Black screen after character selection in xemu** — the game works on real hardware but hangs after starting a new game in xemu. This is an emulator limitation, not a code bug.
-- **Third character preset is blank** — the third preset character in character creation shows no portrait. Pre-existing bug, cause unknown.
+- **FMVs crash xemu** — they work on real hardware. Set `disable_fmv=1` under `[debug]` in `fallout2.cfg` when testing in xemu.
+- **Black screen after character selection** — works on real hardware, emulator limitation.
+
+### All Platforms
+- Many actions still require a keyboard — controller support is basic
+- Right stick is read but not mapped to any action
 
 ### macOS
-- FMVs play but the first frame may flash briefly before the movie starts (cosmetic)
+- FMVs play but the first frame may flash briefly (cosmetic)
 
 ---
 
