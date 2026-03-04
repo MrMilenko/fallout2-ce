@@ -7,6 +7,7 @@
 #ifndef NXDK
 #include <io.h>
 #endif
+#include <fcntl.h>
 #else
 #include <fcntl.h>
 #include <unistd.h>
