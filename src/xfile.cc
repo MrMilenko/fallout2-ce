@@ -205,7 +205,11 @@ int xfilePrintFormattedArgs(XFile* stream, const char* format, va_list args)
         rc = dfilePrintFormattedArgs(stream->dfile, format, args);
         break;
     case XFILE_TYPE_GZFILE:
+#ifndef Z_SOLO
         rc = gzvprintf(stream->gzfile, format, args);
+#else
+        rc = -1;
+#endif
         break;
     default:
         rc = vfprintf(stream->file, format, args);
@@ -227,7 +231,11 @@ int xfileReadChar(XFile* stream)
         ch = dfileReadChar(stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
+#ifndef Z_SOLO
         ch = gzgetc(stream->gzfile);
+#else
+        ch = -1;
+#endif
         break;
     default:
         ch = fgetc(stream->file);
@@ -277,7 +285,11 @@ int xfileWriteChar(int ch, XFile* stream)
         rc = dfileWriteChar(ch, stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
+#ifndef Z_SOLO
         rc = gzputc(stream->gzfile, ch);
+#else
+        rc = -1;
+#endif
         break;
     default:
         rc = fputc(ch, stream->file);
@@ -300,7 +312,11 @@ int xfileWriteString(const char* string, XFile* stream)
         rc = dfileWriteString(string, stream->dfile);
         break;
     case XFILE_TYPE_GZFILE:
+#ifndef Z_SOLO
         rc = gzputs(stream->gzfile, string);
+#else
+        rc = -1;
+#endif
         break;
     default:
         rc = fputs(string, stream->file);

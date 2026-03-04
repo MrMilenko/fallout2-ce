@@ -608,7 +608,13 @@ static void opParseInt(Program* program)
 static void op_atof(Program* program)
 {
     const char* string = programStackPopString(program);
+#ifdef NXDK
+    // NXDK libc doesn't provide atof, use strtod instead
+    char* endptr = nullptr;
+    programStackPushFloat(program, static_cast<float>(strtod(string, &endptr)));
+#else
     programStackPushFloat(program, static_cast<float>(atof(string)));
+#endif
 }
 
 // tile_under_cursor
