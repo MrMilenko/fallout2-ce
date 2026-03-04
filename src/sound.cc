@@ -6,8 +6,8 @@
 #ifdef _WIN32
 #ifndef NXDK
 #include <io.h>
-#endif
 #include <fcntl.h>
+#endif
 #else
 #include <fcntl.h>
 #include <unistd.h>
